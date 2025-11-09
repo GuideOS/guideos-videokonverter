@@ -503,7 +503,7 @@ def conversion_thread():
         # choose extension
         ext = ".mp4"
         if audio_var.get() == "PCM" and video_var.get() == "Nur Audio ändern":
-            ext = ".wav"
+            ext = ".mp4"
         elif audio_var.get() == "FLAC (mkv)":
             ext = ".mkv"
 
