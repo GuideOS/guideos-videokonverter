@@ -16,7 +16,5 @@ Für eine einwandfreie Funktion muss ein aktueller Treiber und python3 installie
 # Installation
 
 install.sh erstellt eine virtuelle Python Umgebung mit tkinterdnd2\
-zen_install.sh macht das gleiche, nur mit einer grafischen Oberfläche\
-Dazu muss allerdings Zenity installiert sein.
 
-Die Linux-Video-Encoder.py kann in ein beliebiges Verzeichnis verschoben werden
+Die guideos-gpu-vc.py kann in ein beliebiges Verzeichnis verschoben werden
