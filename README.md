@@ -8,8 +8,8 @@ Für eine einwandfreie Funktion muss ein aktueller Treiber und python3 installie
 ✅ Konvertierung des Video-Files in h.264, h.265 oder AV1\
 ✅ Auswahl der Qualitätsstufe\
 ✅ Auswahl der Bitrate\
-✅ Vorgabe der Ausgabegröße. Zur Zeit ist für diese Funktion keine Mehrfachauswahl möglich\
-✅ Skalierung auf 4K (3840x2160) ffmpeg mit Lanczos\
+✅ Vorgabe der Ausgabegröße\
+✅ Skalierung auf 720p, 1080p, 1440p und 2160p durch ffmpeg mit Lanczos\
 ✅ Fortschrittsfenster\
 ✅ Abbruch möglich\
 
