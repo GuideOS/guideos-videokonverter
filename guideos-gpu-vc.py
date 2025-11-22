@@ -1,13 +1,14 @@
-#!/usr/bin/env python3
+#!/home/markus/venv/bin/python3
 # =======================================================================
-# Titel: GuideOS-Videokonverter helles Design, GPU-basierte ffmpeg Unterstützung
-# Version: 1.3
+# Titel: GuideOS-Videokonverter (komplett, helles Thema, GPU, Drag & Drop)
+# Version: 1.1 (mit manueller GPU/CPU Auswahl)
 # Autor: Nightworker
-# Datum: 2025-11-08
+# Datum: 2025-11-16
 # Beschreibung: GUI zur Konvertierung von Videos mit GPU-Unterstützung
-# Läuft mit Standard-Python (tkinter) + ffmpeg/ffprobe
+# Läuft mit Standard-Python (tkinter, tkinterdnd2) + ffmpeg/ffprobe
 # Lizenz: MIT
 # ======================================================================
+
 
 import os
 import shutil
@@ -18,6 +19,19 @@ from pathlib import Path
 from datetime import datetime
 import tkinter as tk
 from tkinter import ttk, filedialog, messagebox, simpledialog
+
+# Drag & Drop support
+try:
+    from tkinterdnd2 import TkinterDnD, DND_FILES
+except Exception as e:
+    tk.Tk().withdraw()
+    messagebox.showerror(
+        "Fehlendes Modul",
+        "Das Modul 'tkinterdnd2' ist nicht installiert oder konnte nicht geladen werden.\n\n"
+        "Installiere es mit:\n\n  python3 -m pip install --user tkinterdnd2\n\n"
+        "und starte das Skript dann erneut."
+    )
+    raise SystemExit from e
 
 # -------------------- Design / Farben --------------------
 BG = "#d9d9d9"   # Fensterhintergrund
@@ -39,7 +53,6 @@ def detect_gpu_short():
     s = out.lower()
     if "nvidia" in s:
         return "NVIDIA"
-    # the previous conditional had a logical issue; use simpler detection for AMD
     if "amd" in s or "ati" in s:
         return "AMD"
     if "intel" in s:
@@ -87,11 +100,11 @@ def make_unique_path(path: Path) -> Path:
             return candidate
         i += 1
 
-# regex für time=HH:MM:SS.ms
+# regex für time=HH:MM:SS.ms (ffmpeg-Ausgabe)
 time_re = re.compile(r"time=(\d+):(\d+):(\d+(?:\.\d+)?)")
 
 # -------------------- GUI --------------------
-app = tk.Tk()
+app = TkinterDnD.Tk()  # Drag&Drop-fähiges Fenster
 app.title("GuideOS Videokonverter")
 app.geometry("980x620")
 app.configure(bg=BG)
@@ -119,6 +132,25 @@ gpu_var = tk.StringVar(value=detect_gpu_short())
 gpu_entry = tk.Entry(left_frame, textvariable=gpu_var, state="readonly", width=36,
                      disabledbackground=FIELD, disabledforeground=TEXT)
 gpu_entry.pack(anchor="w", pady=(2,8))
+
+# --- NEU: Benutzer-Auswahl CPU/GPU-Modus (unter der erk. GPU) ---
+tk.Label(left_frame, text="GPU / CPU Auswahl:", bg=BG).pack(anchor="w")
+
+gpu_select_var = tk.StringVar(value="Automatisch (empfohlen)")
+gpu_select_cb = ttk.Combobox(
+    left_frame,
+    textvariable=gpu_select_var,
+    state="readonly",
+    width=36,
+    values=[
+        "Automatisch (empfohlen)",
+        "NVIDIA",
+        "AMD",
+        "Intel",
+        "CPU"
+    ]
+)
+gpu_select_cb.pack(anchor="w", pady=(2,8))
 
 # --- Dateiverwaltung Buttons (oben) ---
 selected_files = []
@@ -187,7 +219,7 @@ target_dir_var = tk.StringVar(value="")
 target_entry = ttk.Entry(opts, textvariable=target_dir_var, width=36)
 target_entry.grid(row=6, column=0, columnspan=2, sticky="w", pady=(0,6))
 
-# NEW: Checkbox "Im Quellverzeichnis speichern"
+# Checkbox "Im Quellverzeichnis speichern"
 save_in_source_var = tk.BooleanVar(value=False)
 save_in_source_cb = ttk.Checkbutton(opts, text="Im Quellverzeichnis speichern", variable=save_in_source_var)
 save_in_source_cb.grid(row=7, column=0, columnspan=2, sticky="w", pady=(0,8))
@@ -200,6 +232,35 @@ listbox.pack(side="left", fill="both", expand=True, padx=(6,0), pady=6)
 scroll = ttk.Scrollbar(list_frame, orient="vertical", command=listbox.yview)
 scroll.pack(side="right", fill="y")
 listbox.config(yscrollcommand=scroll.set)
+
+# ✅ Drag & Drop aktivieren
+def update_listbox():
+    listbox.delete(0, tk.END)
+    for f in selected_files:
+        listbox.insert(tk.END, Path(f).name)
+
+def on_drop(event):
+    # event.data kann mehrere Dateinamen enthalten; splitlist handhabt das korrekt
+    try:
+        files = app.tk.splitlist(event.data)
+    except Exception:
+        files = [event.data]
+    added = 0
+    for f in files:
+        p = Path(f)
+        # akzeptiere nur existierende Dateien und keine versteckten Pfadteile
+        if not p.exists():
+            continue
+        if any(part.startswith('.') for part in p.parts):
+            continue
+        if str(p) not in selected_files and p.suffix.lower() in [".mp4",".mkv",".mov",".avi",".m4v",".mpg",".mpeg",".webm"]:
+            selected_files.append(str(p))
+            added += 1
+    if added:
+        update_listbox()
+
+listbox.drop_target_register(DND_FILES)
+listbox.dnd_bind('<<Drop>>', on_drop)
 
 # Progress bars
 prog_container = tk.Frame(right_frame, bg=BG)
@@ -229,18 +290,13 @@ start_btn.pack(side="right", padx=6)
 cancel_btn = ttk.Button(bottom_left, text="Abbrechen", state="disabled")
 cancel_btn.pack(side="right")
 
-# -------------------- Dialogs / Aktionen --------------------
-def update_listbox():
-    listbox.delete(0, tk.END)
-    for f in selected_files:
-        listbox.insert(tk.END, Path(f).name)
-
+# -------------------- Dialog-Funktionen (Datei-Auswahl etc.) --------------------
 def select_files_action():
     files = filedialog.askopenfilenames(title="Videodateien auswählen",
-                                        filetypes=[("Videos", "*.mp4 *.mov *.mkv *.avi *.m4v *.mpg *.mpeg *.webm")])
+                                        filetypes=[("Videos", "*.mp4 *.mov *.mkv *.avi *.m4v *.mpg *.mpeg *.webm")],
+                                        initialdir=str(Path.home()))
     if not files:
         return
-    # filter out hidden files/paths (any path part starting with '.')
     for f in files:
         p = Path(f)
         if any(part.startswith('.') for part in p.parts):
@@ -281,24 +337,21 @@ def browse_target_dir_custom():
     nodes = {}
 
     def insert_node(parent, p: Path):
-        """Zeigt eine Ebene des Ordners (keine versteckten Dateien)"""
         try:
             for item in sorted(p.iterdir()):
                 if item.name.startswith("."):
                     continue
                 if item.is_dir():
                     node = tree.insert(parent, "end", text=item.name, values=(str(item),))
-                    # füge einen Dummy hinzu, damit das [+] Symbol erscheint
+                    # dummy child, damit das [+] Symbol erscheint
                     tree.insert(node, "end", text="dummy")
                     nodes[node] = item
         except PermissionError:
             pass
 
     def on_open(event):
-        """Lädt Unterordner, wenn ein Knoten geöffnet wird"""
         node = tree.focus()
         if node in nodes:
-            # falls dummy vorhanden → löschen und echte Unterordner einfügen
             children = tree.get_children(node)
             for child in children:
                 if tree.item(child, "text") == "dummy":
@@ -361,10 +414,14 @@ def browse_target_dir_custom():
     ttk.Button(btn_frame, text="OK", command=ok).pack(side="right", padx=4)
     ttk.Button(btn_frame, text="Abbrechen", command=cancel).pack(side="right", padx=4)
 
-
 # -------------------- ffmpeg-Argumenterzeugung (GPU-aware) --------------------
 def build_ffmpeg_args(infile: str, outfile: str):
-    gpu = gpu_var.get().upper()
+    sel = gpu_select_var.get()
+    if sel == "Automatisch (empfohlen)":
+        gpu = gpu_var.get().upper()
+    else:
+        gpu = sel.upper()
+
     vchoice = video_var.get()
     achoice = audio_var.get()
     qmode = quality_var.get()
@@ -374,7 +431,6 @@ def build_ffmpeg_args(infile: str, outfile: str):
     # Select encoder names depending on GPU
     if gpu == "NVIDIA":
         h264, h265, av1 = "h264_nvenc", "hevc_nvenc", "av1_nvenc"
-        # Usually decoder hardware flags aren't strictly needed; leave decode to ffmpeg default
         hw_flags = []
     elif gpu == "AMD":
         h264, h265, av1 = "h264_amf", "hevc_amf", "av1_amf"
@@ -387,23 +443,25 @@ def build_ffmpeg_args(infile: str, outfile: str):
         hw_flags = []
 
     args = []
-    # some hw flags (decode) can be prepended
     if hw_flags:
         args += hw_flags
 
     args += ["-i", infile]
 
-    # audio
-    if achoice == "AAC":
-        args += ["-c:a","aac","-b:a","192k"]
-    elif achoice == "PCM":
-        args += ["-c:a","pcm_s16le"]
-    else:
-        args += ["-c:a","flac"]
-
-    # video
+    # audio (default or for full conversion)
+    # For "Nur Audio ändern" we still set audio below in that branch
     if vchoice == "Nur Audio ändern":
-        args += ["-c:v","copy"]
+        # Video unverändert kopieren
+        args += ["-c:v", "copy"]
+        # Audio neu kodieren
+        if achoice == "AAC":
+            args += ["-c:a", "aac", "-b:a", "192k"]
+        elif achoice == "PCM":
+            args += ["-c:a", "pcm_s16le"]
+        elif achoice == "FLAC (mkv)":
+            args += ["-c:a", "flac"]
+        else:
+            args += ["-c:a", "copy"]
     else:
         codec = h264 if vchoice=="H.264" else (h265 if vchoice=="H.265" else av1)
         if qmode.startswith("CQ"):
@@ -432,6 +490,16 @@ def build_ffmpeg_args(infile: str, outfile: str):
                 video_kbps = 5000
             args += ["-c:v", codec, "-b:v", f"{video_kbps}k", "-preset", "p4"]
 
+        # audio codec for full conversion
+        if achoice == "AAC":
+            args += ["-c:a", "aac", "-b:a", "192k"]
+        elif achoice == "PCM":
+            args += ["-c:a", "pcm_s16le"]
+        elif achoice == "FLAC (mkv)":
+            args += ["-c:a", "flac"]
+        else:
+            args += ["-c:a", "copy"]
+
     # Upscale mapping
     if upscale.startswith("720p"):
         args += ["-vf", "scale=1280:720:flags=lanczos"]
@@ -442,8 +510,7 @@ def build_ffmpeg_args(infile: str, outfile: str):
     elif upscale.startswith("2160p"):
         args += ["-vf", "scale=3840:2160:flags=lanczos"]
 
-    # overwrite output
-    args += ["-y", outfile]
+    # overwrite output will be appended by caller
     return args
 
 # -------------------- Conversion Thread --------------------
@@ -474,19 +541,15 @@ def conversion_thread():
     chosen_target = target_dir_var.get().strip()
     target_provided = bool(chosen_target)
 
-    # If the user provided a target and it exists or can be created, use it as outdir for files (unless "save in source" is active)
     outdir_candidate = None
     if target_provided:
         try:
             outdir_candidate = Path(chosen_target).expanduser()
-            # try to create if doesn't exist
             outdir_candidate.mkdir(parents=True, exist_ok=True)
-            # outdir_candidate now exists
         except Exception:
             outdir_candidate = None
 
     total = len(selected_files)
-    # Show actual chosen directory in log (will be per-file resolved later)
     append_log(f"Starte Konvertierung: {total} Dateien (gewähltes Ziel: {chosen_target or '[auto: converted_<datum>]'})\n\n")
     file_progress['value'] = 0
     total_progress['value'] = 0
@@ -500,25 +563,22 @@ def conversion_thread():
         in_path = Path(infile)
         base = in_path.stem
 
-        # choose extension
+        # choose extension default and special cases
         ext = ".mp4"
         if audio_var.get() == "PCM" and video_var.get() == "Nur Audio ändern":
-            ext = ".mp4"
+            # produce container that supports pcm (mkv)
+            ext = ".mkv"
         elif audio_var.get() == "FLAC (mkv)":
             ext = ".mkv"
 
-        # DETERMINE outdir FOR THIS FILE:
+        # Determine outdir
         if save_in_source_var.get():
-            # explicitly save in source folder
             file_outdir = in_path.parent
         else:
-            # user wants custom target (if provided and valid), else default converted_<date> in first file's dir
             if outdir_candidate:
                 file_outdir = outdir_candidate
             else:
-                # if user provided a path but it could not be created / invalid, fallback to source
                 if target_provided:
-                    # attempt to create once more (in case of race)
                     try:
                         maybe = Path(chosen_target).expanduser()
                         maybe.mkdir(parents=True, exist_ok=True)
@@ -526,21 +586,19 @@ def conversion_thread():
                     except Exception:
                         file_outdir = in_path.parent
                 else:
-                    # no target provided -> default folder in first file's dir
                     first_parent = Path(selected_files[0]).parent
                     file_outdir = first_parent / f"converted_{datetime.now().strftime('%Y-%m-%d')}"
                     file_outdir.mkdir(parents=True, exist_ok=True)
 
-        # Ensure file_outdir exists (final safety)
+        # Safety ensure directory exists
         try:
             file_outdir.mkdir(parents=True, exist_ok=True)
         except Exception:
-            # fallback to source directory
             file_outdir = in_path.parent
 
         tentative = file_outdir / (base + ext)
 
-        # If saving in same dir as source -> ensure renamed _converted to avoid overwrite
+        # If saving in same dir as source -> ensure renamed to avoid overwrite
         if file_outdir.resolve() == in_path.parent.resolve():
             outpath = make_unique_path(tentative)
         else:
@@ -548,10 +606,19 @@ def conversion_thread():
             if outpath.exists():
                 outpath = make_unique_path(outpath)
 
+        # Special adjustments: ensure .mkv for PCM / FLAC in audio-only mode
+        if video_var.get() == "Nur Audio ändern" and audio_var.get() == "PCM":
+            if outpath.suffix.lower() == ".mp4":
+                outpath = outpath.with_suffix(".mkv")
+        if video_var.get() == "Nur Audio ändern" and audio_var.get() == "FLAC (mkv)":
+            if outpath.suffix.lower() != ".mkv":
+                outpath = outpath.with_suffix(".mkv")
+
         append_log(f"--- Datei {idx}/{total}: {in_path.name} → {outpath} ---\n")
         duration = probe_duration_seconds(in_path) or 1.0
 
-        args = build_ffmpeg_args(str(in_path), str(outpath))
+        # Build args and run ffmpeg
+        args = build_ffmpeg_args(str(in_path), str(outpath)) + ["-y", str(outpath)]
         append_log("ffmpeg " + " ".join(args) + "\n")
 
         try:
