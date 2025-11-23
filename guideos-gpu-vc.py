@@ -33,12 +33,16 @@ except Exception as e:
     )
     raise SystemExit from e
 
+# >>> DESIGN_START
 # -------------------- Design / Farben --------------------
-BG = "#d9d9d9"   # Fensterhintergrund
-FIELD = "#efefef"
-TEXT = "#000000"
-ACCENT = "#a0a0a0"
+BG = "#1e1e1e"
+FIELD = "#2a2a2a"
+FIELD2 = "#3d3b3b"
+FIELD3 = "#595959"
+TEXT = "#ffffff"
+ACCENT = "#3a3a3a"
 PROG = "#4b9e8c"
+# >>> DESIGN_END
 
 # -------------------- Hilfsfunktionen --------------------
 def which_bin(name):
@@ -105,20 +109,62 @@ time_re = re.compile(r"time=(\d+):(\d+):(\d+(?:\.\d+)?)")
 
 # -------------------- GUI --------------------
 app = TkinterDnD.Tk()  # Drag&Drop-fähiges Fenster
-app.title("GuideOS Videokonverter")
+app.title("Videoencoder")
 app.geometry("980x620")
 app.configure(bg=BG)
 
 style = ttk.Style()
 try:
-    style.theme_use("clam")
+    style.theme_use("clam")  # unterstützt Farben am besten
 except Exception:
     pass
+
+# Hintergrund generell
+app.configure(bg=BG)
+
 style.configure("TFrame", background=BG)
 style.configure("TLabel", background=BG, foreground=TEXT)
-style.configure("TButton", background=FIELD, foreground=TEXT)
-style.configure("TCombobox", fieldbackground=BG, background=FIELD, foreground=TEXT)
-style.configure("Horizontal.TProgressbar", troughcolor=FIELD, background=PROG)
+
+# Buttons
+style.configure(
+    "TButton",
+    background=FIELD2,
+    foreground=TEXT,
+    borderwidth=0,
+    focusthickness=3,
+    focuscolor=ACCENT
+)
+
+# Hover-Fix für Buttons
+style.map(
+    "TButton",
+    background=[("active", FIELD3)],
+    foreground=[("active", TEXT)]
+)
+
+# Combobox
+style.configure(
+    "TCombobox",
+    fieldbackground=FIELD,
+    background=FIELD,
+    foreground=TEXT,
+    arrowcolor=TEXT
+)
+
+# Listenfeld im Dropdown weißer Text + dunkler Hintergrund
+style.map(
+    "TCombobox",
+    fieldbackground=[("readonly", FIELD)],
+    foreground=[("readonly", TEXT)]
+)
+
+# Progressbar
+style.configure(
+    "Horizontal.TProgressbar",
+    troughcolor=FIELD,
+    background=PROG
+)
+
 
 # Frames
 left_frame = tk.Frame(app, bg=BG)
@@ -127,14 +173,14 @@ right_frame = tk.Frame(app, bg=BG)
 right_frame.pack(side="right", fill="both", expand=True, padx=14, pady=12)
 
 # GPU
-tk.Label(left_frame, text="Erkannte Grafikkarte:", bg=BG).pack(anchor="w")
+tk.Label(left_frame, text="Erkannte Grafikkarte:", bg=BG, fg=TEXT).pack(anchor="w")
 gpu_var = tk.StringVar(value=detect_gpu_short())
 gpu_entry = tk.Entry(left_frame, textvariable=gpu_var, state="readonly", width=36,
                      disabledbackground=FIELD, disabledforeground=TEXT)
 gpu_entry.pack(anchor="w", pady=(2,8))
 
 # --- NEU: Benutzer-Auswahl CPU/GPU-Modus (unter der erk. GPU) ---
-tk.Label(left_frame, text="GPU / CPU Auswahl:", bg=BG).pack(anchor="w")
+tk.Label(left_frame, text="GPU / CPU Auswahl:", bg=BG, fg=TEXT).pack(anchor="w")
 
 gpu_select_var = tk.StringVar(value="Automatisch (empfohlen)")
 gpu_select_cb = ttk.Combobox(
@@ -169,7 +215,7 @@ opts = tk.Frame(left_frame, bg=BG)
 opts.pack(anchor="w", pady=(0,8))
 
 # Upscale dropdown
-tk.Label(opts, text="Upscaling:", bg=BG).grid(row=0, column=0, sticky="w")
+tk.Label(opts, text="Upscaling:", bg=BG, fg=TEXT).grid(row=0, column=0, sticky="w")
 upscale_var = tk.StringVar(value="Original")
 upscale_cb = ttk.Combobox(opts, textvariable=upscale_var,
     values=["Original","720p (1280x720)","1080p (1920x1080)","1440p (2560x1440)","2160p (3840x2160)"],
@@ -177,26 +223,26 @@ upscale_cb = ttk.Combobox(opts, textvariable=upscale_var,
 upscale_cb.grid(row=0, column=1, padx=(8,0), pady=(0,6), sticky="w")
 
 # Audio
-tk.Label(opts, text="Audioformat:", bg=BG).grid(row=1, column=0, sticky="w")
+tk.Label(opts, text="Audioformat:", bg=BG, fg=TEXT).grid(row=1, column=0, sticky="w")
 audio_var = tk.StringVar(value="AAC")
 audio_cb = ttk.Combobox(opts, textvariable=audio_var, values=["AAC","PCM","FLAC (mkv)"], width=28, state="readonly")
 audio_cb.grid(row=1, column=1, padx=(8,0), pady=(2,6), sticky="w")
 
 # Video
-tk.Label(opts, text="Videoformat:", bg=BG).grid(row=2, column=0, sticky="w")
+tk.Label(opts, text="Videoformat:", bg=BG, fg=TEXT).grid(row=2, column=0, sticky="w")
 video_var = tk.StringVar(value="H.264")
 video_cb = ttk.Combobox(opts, textvariable=video_var, values=["H.264","H.265","AV1","Nur Audio ändern"], width=28, state="readonly")
 video_cb.grid(row=2, column=1, padx=(8,0), pady=(2,6), sticky="w")
 
 # Qualität
-tk.Label(opts, text="Qualität:", bg=BG).grid(row=3, column=0, sticky="w")
+tk.Label(opts, text="Qualität:", bg=BG, fg=TEXT).grid(row=3, column=0, sticky="w")
 quality_var = tk.StringVar(value="CQ (Qualitätsbasiert)")
 quality_cb = ttk.Combobox(opts, textvariable=quality_var,
     values=["CQ (Qualitätsbasiert)","Bitrate (kbit/s)","Zieldateigröße (MB)"],
     width=28, state="readonly")
 quality_cb.grid(row=3, column=1, padx=(8,0), pady=(2,4), sticky="w")
 
-tk.Label(opts, text="Wert:", bg=BG).grid(row=4, column=0, sticky="w")
+tk.Label(opts, text="Wert:", bg=BG, fg=TEXT).grid(row=4, column=0, sticky="w")
 quality_value_var = tk.StringVar(value="23")  # default CQ=23
 quality_entry = ttk.Entry(opts, textvariable=quality_value_var, width=10)
 quality_entry.grid(row=4, column=1, sticky="w", padx=(8,0), pady=(2,8))
@@ -214,7 +260,7 @@ quality_cb.bind("<<ComboboxSelected>>", on_quality_change)
 on_quality_change()
 
 # Zielordner entry
-tk.Label(opts, text="Zielordner (leer → converted_<datum>):", bg=BG).grid(row=5, column=0, columnspan=2, sticky="w", pady=(6,2))
+tk.Label(opts, text="Zielordner (leer → converted_<datum>):", bg=BG, fg=TEXT).grid(row=5, column=0, columnspan=2, sticky="w", pady=(6,2))
 target_dir_var = tk.StringVar(value="")
 target_entry = ttk.Entry(opts, textvariable=target_dir_var, width=36)
 target_entry.grid(row=6, column=0, columnspan=2, sticky="w", pady=(0,6))
@@ -227,7 +273,7 @@ save_in_source_cb.grid(row=7, column=0, columnspan=2, sticky="w", pady=(0,8))
 # --- Right side: listbox, progress, log ---
 list_frame = tk.Frame(right_frame, bg=FIELD, bd=1, relief="solid")
 list_frame.pack(fill="both", expand=False, padx=(6,6), pady=(6,6))
-listbox = tk.Listbox(list_frame, bg=FIELD, fg=TEXT, selectmode="extended", height=12, borderwidth=0)
+listbox = tk.Listbox(list_frame, bg=FIELD2, fg=TEXT, selectmode="extended", height=12, borderwidth=0)
 listbox.pack(side="left", fill="both", expand=True, padx=(6,0), pady=6)
 scroll = ttk.Scrollbar(list_frame, orient="vertical", command=listbox.yview)
 scroll.pack(side="right", fill="y")
@@ -265,18 +311,18 @@ listbox.dnd_bind('<<Drop>>', on_drop)
 # Progress bars
 prog_container = tk.Frame(right_frame, bg=BG)
 prog_container.pack(fill="x", padx=6, pady=(6,4))
-tk.Label(prog_container, text="Aktueller Dateifortschritt:", bg=BG).pack(anchor="w")
+tk.Label(prog_container, text="Aktueller Dateifortschritt:", bg=BG, fg=TEXT).pack(anchor="w")
 file_progress = ttk.Progressbar(prog_container, style="Horizontal.TProgressbar", orient="horizontal", length=640, mode="determinate")
 file_progress.pack(fill="x", pady=(4,6))
-tk.Label(prog_container, text="Gesamtfortschritt:", bg=BG).pack(anchor="w")
+tk.Label(prog_container, text="Gesamtfortschritt:", bg=BG, fg=TEXT).pack(anchor="w")
 total_progress = ttk.Progressbar(prog_container, style="Horizontal.TProgressbar", orient="horizontal", length=640, mode="determinate")
 total_progress.pack(fill="x", pady=(4,6))
 
 # Log
 log_frame = tk.Frame(right_frame, bg=BG)
 log_frame.pack(fill="both", expand=True, padx=6, pady=(6,6))
-tk.Label(log_frame, text="ffmpeg-Ausgabe (live):", bg=BG).pack(anchor="w")
-log_text = tk.Text(log_frame, height=10, bg=FIELD, fg="#303030", wrap="word")
+tk.Label(log_frame, text="ffmpeg-Ausgabe (live):", bg=BG, fg=TEXT).pack(anchor="w")
+log_text = tk.Text(log_frame, height=10, bg=FIELD2, fg=TEXT, wrap="word")
 log_text.pack(fill="both", expand=True, pady=(4,0))
 log_scroll = ttk.Scrollbar(log_frame, orient="vertical", command=log_text.yview)
 log_scroll.pack(side="right", fill="y")
@@ -566,8 +612,8 @@ def conversion_thread():
         # choose extension default and special cases
         ext = ".mp4"
         if audio_var.get() == "PCM" and video_var.get() == "Nur Audio ändern":
-            # produce container that supports pcm (mkv)
-            ext = ".mkv"
+            # produce container that supports pcm (mp4)
+            ext = ".mp4"
         elif audio_var.get() == "FLAC (mkv)":
             ext = ".mkv"
 
@@ -609,7 +655,7 @@ def conversion_thread():
         # Special adjustments: ensure .mkv for PCM / FLAC in audio-only mode
         if video_var.get() == "Nur Audio ändern" and audio_var.get() == "PCM":
             if outpath.suffix.lower() == ".mp4":
-                outpath = outpath.with_suffix(".mkv")
+                outpath = outpath.with_suffix(".mp4")
         if video_var.get() == "Nur Audio ändern" and audio_var.get() == "FLAC (mkv)":
             if outpath.suffix.lower() != ".mkv":
                 outpath = outpath.with_suffix(".mkv")
@@ -704,7 +750,7 @@ listbox.bind("<Double-Button-1>", on_listbox_double)
 listbox.bind("<Delete>", lambda e: remove_selected_action())
 
 # initial log
-append_log("GuideOS Videokonverter\nHinweis: ffmpeg und ffprobe müssen installiert sein.\nWähle Dateien, überprüfe Einstellungen und klicke 'Konvertierung starten'.\n\n")
+append_log("Videoencoder\nHinweis: ffmpeg und ffprobe müssen installiert sein.\nWähle Dateien, überprüfe Einstellungen und klicke 'Konvertierung starten'.\n\n")
 
 # start GUI
 app.mainloop()
