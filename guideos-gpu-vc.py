@@ -109,7 +109,7 @@ time_re = re.compile(r"time=(\d+):(\d+):(\d+(?:\.\d+)?)")
 
 # -------------------- GUI --------------------
 app = TkinterDnD.Tk()  # Drag&Drop-fähiges Fenster
-app.title("Videoencoder")
+app.title("GuideOS-Videokonverter")
 app.geometry("980x620")
 app.configure(bg=BG)
 
@@ -750,7 +750,7 @@ listbox.bind("<Double-Button-1>", on_listbox_double)
 listbox.bind("<Delete>", lambda e: remove_selected_action())
 
 # initial log
-append_log("Videoencoder\nHinweis: ffmpeg und ffprobe müssen installiert sein.\nWähle Dateien, überprüfe Einstellungen und klicke 'Konvertierung starten'.\n\n")
+append_log("GuideOS-Videokonverter\nHinweis: ffmpeg und ffprobe müssen installiert sein.\nWähle Dateien, überprüfe Einstellungen und klicke 'Konvertierung starten'.\n\n")
 
 # start GUI
 app.mainloop()
