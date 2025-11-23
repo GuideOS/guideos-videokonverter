@@ -148,4 +148,5 @@ Die virtuelle Python-Umgebung wurde erfolgreich eingerichtet.
 Pfad: $VENV_PATH
 
 Der Shebang in '$FILE' wurde aktualisiert"
+chmod +x "$FILE"
 
