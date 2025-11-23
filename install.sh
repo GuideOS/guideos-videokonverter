@@ -17,17 +17,56 @@ if ! command -v zenity &> /dev/null; then
     exit 1
 fi
 
-FILE="guideos-gpu-vc.py"
+FILE1="guideos-gpu-vc.py"
+FILE2="guideos-gpu-vc-dark.py"
 USER_NAME=$(whoami)
 NEW_SHEBANG="#!/home/$USER_NAME/venv/bin/python3"
 USER_HOME="$HOME"
 VENV_PATH="$USER_HOME/venv"
 
-# Datei prüfen
-if [ ! -f "$FILE" ]; then
-    zenity --error --title="Fehler" --text="Die Datei '$FILE' wurde nicht gefunden!"
-    exit 1
+# Auswahlmenü
+CHOICE=$(zenity --list \
+    --title="Dateiauswahl" \
+    --text="Welche Datei soll geändert werden?" \
+    --column="Option" --column="Beschreibung" \
+    1 "Nur $FILE1 ändern" \
+    2 "Nur $FILE2 ändern" \
+    3 "Beide Dateien ändern" \
+)
+
+# Abbruch prüfen
+if [ -z "$CHOICE" ]; then
+    exit 0
 fi
+
+check_and_modify() {
+    local FILE="$1"
+
+    # Datei prüfen
+    if [ ! -f "$FILE" ]; then
+        zenity --error --title="Fehler" --text="Die Datei '$FILE' wurde nicht gefunden!"
+        return
+    fi
+
+    # Shebang ersetzen
+    sed -i "1s|^#!.*|$NEW_SHEBANG|" "$FILE"
+
+    zenity --info --title="Erfolg" --text="Die Datei '$FILE' wurde erfolgreich aktualisiert!"
+}
+
+case "$CHOICE" in
+    1)
+        check_and_modify "$FILE1"
+        ;;
+    2)
+        check_and_modify "$FILE2"
+        ;;
+    3)
+        check_and_modify "$FILE1"
+        check_and_modify "$FILE2"
+        ;;
+esac
+
 
 ###############################################################################
 # Passwort abfragen
