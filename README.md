@@ -19,3 +19,4 @@ install.sh erstellt eine virtuelle Python Umgebung und einen Mnüeintrag\
 in GuideOS, von dem aus der Videokonverter gestartet werden kann\
 
 
+<img width="980" height="652" alt="GuideOS-Videokonverter" src="https://github.com/user-attachments/assets/f0c01ce3-61eb-446a-8055-2792b51c4ae8" />
