@@ -18,5 +18,5 @@ Für eine einwandfreie Funktion muss ein aktueller Treiber und python3 installie
 install.sh erstellt eine virtuelle Python Umgebung und einen Mnüeintrag\
 in GuideOS, von dem aus der Videokonverter gestartet werden kann
 
+<img width="640" height="426" alt="GuideOS-Videokonverter" src="https://github.com/user-attachments/assets/4c240dfa-7169-44c7-94cb-7a6ddf0ea02a" />
 
-<img width="980" height="652" alt="GuideOS-Videokonverter" src="https://github.com/user-attachments/assets/f0c01ce3-61eb-446a-8055-2792b51c4ae8" />
