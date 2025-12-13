@@ -15,7 +15,7 @@ Für eine einwandfreie Funktion muss ein aktueller Treiber und python3 installie
 
 # Installation
 
-install.sh erstellt eine virtuelle Python Umgebung mit tkinterdnd2\
-Die guideos-gpu-vc.py kann in ein beliebiges Verzeichnis verschoben werden\
+install.sh erstellt eine virtuelle Python Umgebung und einen Mnüeintrag\
+in GuideOS, von dem aus der Videokonverter gestartet werden kann\
 
-Mit design-switch.sh lässt sich das Design der guideos-gpu-vc.py ändern
+
