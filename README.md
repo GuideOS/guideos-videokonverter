@@ -15,6 +15,6 @@ Für eine einwandfreie Funktion muss ein aktueller Treiber und python3 installie
 
 # Installation
 
-Der GuideOS Videokonverter ist in GKK3 geschrieben.\
+Der GuideOS Videokonverter ist in GTK3 geschrieben.\
 Für die Installation auf GuideOS führst du einfach \
 die beigefügte guideos_videkonverter.deb aus
