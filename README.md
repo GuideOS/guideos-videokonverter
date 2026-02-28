@@ -68,13 +68,13 @@ den Benutzer abgebrochen werden.
 
 ```bash
 # Clone repository
-git clone [https://github.com/Nightworker-DE/Linux-Video-Enkoder.git)
+git clone https://github.com/GuideOS/guideos-videokonverter.git
 cd Linux-Video-Enkoder
 
 # Create DEB package
 dpkg-buildpackage -us -uc
 
 # Install (as root)
-sudo dpkg -i ./linux-video-enkoder_1.0.3_all.deb
-sudo apt-get install -f  # Resolve dependencies if needed
+sudo dpkg -i ./guideos-videokonverter_1.0.3_all.deb
+
 ```
