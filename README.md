@@ -29,7 +29,7 @@ Die Auswahl des Encoders erfolgt abhängig von der verfügbaren Hardware des\ Sy
 Das Quellvideo kann in eines der folgenden Zielformate konvertiert werden:\
     • H.264 (AVC)\
     • H.265 (HEVC)\
-    • AV1\
+    • AV1
 
 ### Audioeinstellungen
 Der im Videofile enthaltene Audio-Codec kann unabhängig vom Videoformat\
@@ -39,13 +39,13 @@ das Videoformat  nicht verändert wird.
 Unterstützt werden:\
     • PCM (16 Bit)\
     • AAC\
-    • FLAC (16 Bit)\
+    • FLAC (16 Bit)
 
 ### Qualität und Bitrate
 Die Software ermöglicht:\
     • die Auswahl einer vordefinierten Qualitätsstufe\
     • die manuelle Einstellung der Zielbitrate\
-    • die gewünschte Ausgabegröße\
+    • die gewünschte Ausgabegröße
 
 Diese Parameter beeinflussen die resultierende Dateigröße und Bildqualität.
 ### Auflösung und Skalierung
