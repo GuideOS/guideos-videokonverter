@@ -23,7 +23,7 @@ Für die Videokodierung stehen folgende Encoder zur Verfügung:\
     • Intel: Hardwarebeschleunigung über VAAPI\
     • CPU: Softwarebasierte Kodierung ohne Hardwarebeschleunigung\
 
-Die Auswahl des Encoders erfolgt abhängig von der verfügbaren Hardware des\ Systems.\
+Die Auswahl des Encoders erfolgt abhängig von der verfügbaren Hardware des Systems.
 
 ### Videoformate
 Das Quellvideo kann in eines der folgenden Zielformate konvertiert werden:\
