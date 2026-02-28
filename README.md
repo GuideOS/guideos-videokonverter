@@ -14,9 +14,9 @@ Für eine einwandfreie Funktion muss ein aktueller Treiber installiert sein.
 ✅ Abbruch möglich\
 ***
 ### Funktionsübersicht
-Die Software bietet umfangreiche Funktionen zur Video- und Audiokonvertierung\ unter Nutzung moderner Hard- und Software-Enkoder.\
-Enkoder-Unterstützung\
+Die Software bietet umfangreiche Funktionen zur Video- und Audiokonvertierung unter Nutzung moderner Hard- und Software-Enkoder.\
 
+### Enkoder-Unterstützung\
 Für die Videokodierung stehen folgende Encoder zur Verfügung:\
     • NVIDIA: Hardwarebeschleunigung über NVENC\
     • AMD: Hardwarebeschleunigung über AMF bzw. VAAPI\
