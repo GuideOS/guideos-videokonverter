@@ -49,7 +49,7 @@ Die Software ermöglicht:\
 
 Diese Parameter beeinflussen die resultierende Dateigröße und Bildqualität.
 ### Auflösung und Skalierung
-Es stehen folgende vordefinierte Zielauflösungen zur Verfügung:
+Es stehen folgende vordefinierte Zielauflösungen zur Verfügung:\
     • 1280 × 720   (720p)\
     • 1920 × 1080 (1080p)\
     • 2560 × 1440 (1440p)\
@@ -69,7 +69,7 @@ den Benutzer abgebrochen werden.
 ```bash
 # Clone repository
 git clone https://github.com/GuideOS/guideos-videokonverter.git
-cd Linux-Video-Enkoder
+cd guideos-videokonverter
 
 # Create DEB package
 dpkg-buildpackage -us -uc
