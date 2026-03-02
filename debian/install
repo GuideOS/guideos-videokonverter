@@ -1,0 +1,5 @@
+guideos-videokonverter         usr/bin/
+guideos-videokonverter.desktop usr/share/applications/
+guideos-videokonverter.png     usr/share/pixmaps/
+guideos-videokonverter.py      usr/lib/guideos-videokonverter/
+video_preview.py               usr/lib/guideos-videokonverter/
