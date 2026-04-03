@@ -92,7 +92,7 @@ dpkg-buildpackage -us -uc
 ```
 ```bash
 # Install (as root)
-sudo dpkg -i ../GuideOS-Videokonverter_1.0.8_all.deb
+sudo dpkg -i ../guideOS-videokonverter_1.0.8_all.deb
 sudo apt-get install -f  # Resolve dependencies if needed
 ```
 Die erstellte .deb Datei kann aber auch durch ein Doppelklick gestartet werden.
