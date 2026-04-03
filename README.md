@@ -83,7 +83,7 @@ Ressourceneffizienz: Das Modul nutzt Multithreading für die Bildextraktion, um 
 Erstelle ein beliebiges Verzeichnis, öffne darin das Terminal und führe folgende Schritte aus: 
 ```bash
 # Clone repository
-git clone https://github.com/GuideOS/guideos-videokonverter.git)
+git clone https://github.com/GuideOS/guideos-videokonverter.git
 cd guideos-videokonverter
 ```
 ```bash
