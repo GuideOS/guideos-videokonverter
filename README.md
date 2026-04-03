@@ -75,6 +75,6 @@ cd guideos-videokonverter
 dpkg-buildpackage -us -uc
 
 # Install (as root)
-sudo dpkg -i ../guideos-videokonverter_1.0.5_all.deb
+sudo dpkg -i ../guideos-videokonverter_1.0.8_all.deb
 
 ```
