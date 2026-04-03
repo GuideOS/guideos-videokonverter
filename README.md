@@ -2,7 +2,7 @@
 
 <img width="1052" height="841" alt="Videokonverter" src="https://github.com/user-attachments/assets/8b0677f0-22b0-41be-a81c-85d28857c98f" />
 
-### Für eine einwandfreie Funktion muss ein aktueller GPU-Treiber und python3 installiert sein.
+## Für eine einwandfreie Funktion muss ein aktueller GPU-Treiber und python3 installiert sein.
 
 ✅ Unterstützung: NVIDIA (NVENC); AMD (AMF/VAAPI); Intel (VAAPI); CPU (Software)\
 ✅ Der Audio-Codec im Videofile kann geändert werden: PCM 16bit, AAC, Flac\
