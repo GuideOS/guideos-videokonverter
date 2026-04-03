@@ -83,12 +83,14 @@ Ressourceneffizienz: Das Modul nutzt Multithreading für die Bildextraktion, um 
 Erstelle ein beliebiges Verzeichnis, öffne darin das Terminal und führe folgende Schritte aus: 
 ```bash
 # Clone repository
-git clone https://github.com/Nightworker-DE/Linux-Video-Enkoder.git
-cd GuideOS-Videokonverter
-
+git clone https://github.com/GuideOS/guideos-videokonverter.git)
+cd guideos-videokonverter
+```
+```bash
 # Create DEB package
 dpkg-buildpackage -us -uc
-
+```
+```bash
 # Install (as root)
 sudo dpkg -i ../GuideOS-Videokonverter_1.0.8_all.deb
 sudo apt-get install -f  # Resolve dependencies if needed
