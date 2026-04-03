@@ -84,7 +84,7 @@ Erstelle ein beliebiges Verzeichnis, öffne darin das Terminal und führe folgen
 ```bash
 # Clone repository
 git clone https://github.com/Nightworker-DE/Linux-Video-Enkoder.git
-cd Linux-Video-Enkoder
+cd GuideOS-Videokonverter
 
 # Create DEB package
 dpkg-buildpackage -us -uc
