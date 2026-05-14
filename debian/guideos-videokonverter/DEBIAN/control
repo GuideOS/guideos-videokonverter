@@ -1,0 +1,14 @@
+Package: guideos-videokonverter
+Version: 1.0.9
+Architecture: all
+Maintainer: Nightworker <nightworker@guideos.de>
+Installed-Size: 61
+Depends: python3, grub-common
+Section: video
+Priority: optional
+Homepage: https://github.com/GuideOS/guideos-videokonverter
+Description: Grafische ffmpeg-Oberfläche mit Hardwarebeschleunigung
+ Ein grafisches Frontend für ffmpeg zur effizienten Videokonvertierung.
+ Das Tool unterstützt GPU-basierte Hardwarebeschleunigung (z. B. via
+ NVENC, VA-API oder QSV), um die Systemlast zu minimieren und die
+ Verarbeitungsgeschwindigkeit zu optimieren.
