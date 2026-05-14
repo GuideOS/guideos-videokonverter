@@ -1,7 +1,7 @@
 [Desktop Entry]
 Version=1.0.9
 Name=GuideOS Videokonverter
-Name[de]=Videos umwandeln und bearbeiten
+Name[de]=GuideOS Videokonverter
 Comment=Videos konvertieren
 Exec=guideos-videokonverter
 Icon=guideos-videokonverter
