@@ -1,3 +1,0 @@
-#!/bin/bash
-cd /usr/lib/guideos-videokonverter
-python3 guideos-videokonverter.py
