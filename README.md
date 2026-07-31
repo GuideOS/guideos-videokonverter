@@ -1,8 +1,13 @@
-## GuideOS-Videokonverter
+## Guideos-Videokonverter
+ist ein auf Linux ausgerichtetes Video-Verarbeitungstool, das dem Benutzer das Konvertieren von Video-Clips in andere Formate erleichtert. Es dient ferner der kompakten Speicherung großer Clips in platzsparenden Formaten und unterstützt jeweils den umgekehrten Prozess. Zur Beschleunigung der Arbeitsabläufe wird, sofern verfügbar, die vorhandene Hardware so weit wie möglich genutzt. Unterstützte Codecs sind H.264, H.265 und AV1. Die Konvertierung in AV1 bildet einen Sonderfall, da ältere Hardware diesen Codec möglicherweise nicht unterstützt. Falls keine Hardware-Unterstützung vorhanden ist, wird eine entsprechende Fehlermeldung ausgegeben; in diesem Fall ist jedoch eine Software-basierte Konvertierung weiterhin möglich.
 
-<img width="1052" height="841" alt="Videokonverter" src="https://github.com/user-attachments/assets/8b0677f0-22b0-41be-a81c-85d28857c98f" />   
+<div style="display:flex; gap:10px;">
+  <img src="screenshot/hochkant-preview.webp" width="270" height="183">
+  <img src="screenshot/querformat-preview.webp" width="270" height="183">
+  <img src="screenshot/schnittbereich-preview.webp" width="270" height="183">
+</div>
 
- Für eine einwandfreie Funktion müssen ein aktueller GPU-Treiber und Python3 installiert sein.
+### Für eine einwandfreie Funktion muss ein aktueller Treiber und python3 installiert sein.
 
 ✅ Unterstützung: NVIDIA (NVENC); AMD (AMF/VAAPI); Intel (VAAPI); CPU (Software)\
 ✅ Der Audio-Codec im Videofile kann geändert werden: PCM 16bit, AAC, Flac\
