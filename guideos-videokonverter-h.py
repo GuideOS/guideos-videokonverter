@@ -149,7 +149,7 @@ def _codec_quality_args(codec, qmode, qval_raw, preset, infile):
 class VideoConverterWindow(Gtk.Window):
     def __init__(self):
         super().__init__()
-        self.set_default_size(850, 1060)
+        self.set_default_size(960, 780)
 
         # --- Pfad zum Logo ---
         logo_file = Path(__file__).parent / "guideos-logo.png"
@@ -161,12 +161,16 @@ class VideoConverterWindow(Gtk.Window):
         # Logo zentriert einfügen (falls Datei existiert)
         if logo_file.exists():
             try:
+                # Hier die Höhe/Breite deines tatsächlichen Logos anpassen:
                 pixbuf = Pixbuf.new_from_file_at_scale(str(logo_file), width=-1, height=36, preserve_aspect_ratio=True)
                 header_logo = Gtk.Image.new_from_pixbuf(pixbuf)
+
+                # Platziert dein Logo mittig in der HeaderBar
                 header_bar.set_custom_title(header_logo)
             except Exception as e:
                 print(f"Konnte Logo nicht laden: {e}")
         else:
+            # Falls kein Logo da ist, Fallback auf Text-Titel
             header_bar.set_title("GuideOS Videokonverter")
 
         self.set_titlebar(header_bar)
@@ -231,14 +235,8 @@ class VideoConverterWindow(Gtk.Window):
         main_hbox.set_margin_top(12); main_hbox.set_margin_bottom(12)
         self.add(main_hbox)
 
-        # --- Linke Einstellungsspalte mit Scroll-Container ---
         left_vbox = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=10)
-        left_vbox.set_margin_end(10)
-
-        left_scroll = Gtk.ScrolledWindow()
-        left_scroll.set_policy(Gtk.PolicyType.NEVER, Gtk.PolicyType.AUTOMATIC)
-        left_scroll.add_with_viewport(left_vbox)
-        main_hbox.pack_start(left_scroll, False, True, 0)
+        main_hbox.pack_start(left_vbox, False, False, 0)
 
         left_vbox.pack_start(Gtk.Label(label="Erkannte Grafikkarte:", xalign=0), False, False, 0)
         self.gpu_entry = Gtk.Entry(editable=False, text=detect_gpu_short())
