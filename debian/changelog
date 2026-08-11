@@ -1,3 +1,15 @@
+guideos-videokonverter (1.1.9) unstable; urgency=low
+  * added “re-sharpen” to lnczeros
+ -- Nightworker <nightworker@guideos.de>  Tue, 11 Aug 2026 07:31:00 +0200
+
+guideos-videokonverter (1.1.8) unstable; urgency=low
+  * migrated to pyqt6
+ -- Nightworker <nightworker@guideos.de>  Thu, 06 Aug 2026 16:31:00 +0200
+
+guideos-videokonverter (1.1.7) unstable; urgency=low
+  *life video-preview with gstreamer
+ -- Nightworker <nightworker@guideos.de>  Mon, 03 Aug 2026 20:00:00 +0100
+
 guideos-videokonverter (1.1.6) unstable; urgency=low
   *diverse Anpassungen
  -- Nightworker <nightworker@guideos.de>  Wed, 29 Jul 2026 18:00:00 +0100
