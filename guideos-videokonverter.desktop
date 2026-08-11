@@ -1,0 +1,13 @@
+[Desktop Entry]
+Version=1.1.8
+Name=GuideOS Videokonverter
+Name[de]=GuideOS Videokonverter
+Comment=Videos konvertieren
+Exec=guideos-videokonverter
+Icon=guideos-videokonverter
+Terminal=false
+Type=Application
+StartupNotify=true
+Categories=GuideOS;AudioVideo;AudioVideoEditing;
+StartupWMClass=guideos-videokonverter
+
