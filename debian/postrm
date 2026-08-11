@@ -1,0 +1,24 @@
+#!/bin/sh
+set -e
+
+# $1 enthält die Aktion (z.B. purge, remove, upgrade)
+if [ "$1" = "purge" ]; then
+    echo "Lösche User-Konfigurationen für guideos-videokonverter..."
+
+    # Alle echten User-Home-Verzeichnisse durchgehen (UID >= 1000)
+    getent passwd | awk -F: '$3 >= 1000 && $3 < 60000 { print $6 }' | while read -r user_home; do
+        if [ -d "$user_home/.config/guideos-videokonverter" ]; then
+            rm -rf "$user_home/.config/guideos-videokonverter"
+        fi
+    done
+
+    # Auch für root löschen, falls es als root ausgeführt wurde
+    if [ -d "/root/.config/guideos-videokonverter" ]; then
+        rm -rf "/root/.config/guideos-videokonverter"
+    fi
+fi
+
+# DEBHELPER-Tag für automatische Maintainer-Skript-Inhalte von Debian
+#DEBHELPER#
+
+exit 0
