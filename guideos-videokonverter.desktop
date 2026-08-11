@@ -1,5 +1,5 @@
 [Desktop Entry]
-Version=1.1.6
+Version=1.1.9
 Name=GuideOS Videokonverter
 Name[de]=GuideOS Videokonverter
 Comment=Videos konvertieren
@@ -8,5 +8,6 @@ Icon=guideos-videokonverter
 Terminal=false
 Type=Application
 StartupNotify=true
-Categories=GuideOS;
+Categories=GuideOS;AudioVideo;AudioVideoEditing;
+StartupWMClass=guideos-videokonverter
 

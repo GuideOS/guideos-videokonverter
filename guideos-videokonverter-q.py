@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 # =======================================================================
-# Titel:    GuideOS Videokonverter (GTK3 Port)
-# Version:  1.1.5 (Tabbed-UI Notebook Version)
-# Autor:    Nightworker / UI Refactoring: Gemini
+# Titel:     Linux Video Enkoder (PyQt6 Tabbed GUI with Layout Switcher)
+# Version:   1.1.9 (Restored Multi-Stage Sharpening Dropdown)
+# Autor:     Nightworker / Adaptive UI: Gemini
 # =======================================================================
 import sys
 import os
@@ -11,13 +11,16 @@ import shutil
 import subprocess
 import threading
 import re
-import urllib.parse
 from pathlib import Path
 
-import gi
-gi.require_version('Gtk', '3.0')
-from gi.repository import Gtk, Gdk, GLib
-from gi.repository.GdkPixbuf import Pixbuf
+from PyQt6.QtWidgets import (
+    QApplication, QMainWindow, QWidget, QVBoxLayout, QHBoxLayout,
+    QGridLayout, QLabel, QLineEdit, QComboBox, QPushButton, QCheckBox,
+    QSpinBox, QProgressBar, QTextEdit, QListWidget, QAbstractItemView,
+    QFileDialog, QFrame, QTabWidget
+)
+from PyQt6.QtCore import Qt, pyqtSignal, QObject
+from PyQt6.QtGui import QDragEnterEvent, QDropEvent
 
 # --- Import der Vorschau ---
 try:
@@ -25,12 +28,12 @@ try:
 except ImportError:
     VideoPreviewDialog = None
 
+
 # -------------------- Hilfsfunktionen & Sicherheit --------------------
 def which_bin(name):
     return shutil.which(name) is not None
 
 def detect_gpu_short():
-    """Sichere GPU-Erkennung ohne Shell-Interpreter (Schutz vor Shell-Injection)."""
     try:
         res = subprocess.run(["lspci"], capture_output=True, text=True, check=False)
         s = res.stdout.lower()
@@ -72,14 +75,12 @@ def make_unique_path(path: Path) -> Path:
         i += 1
 
 def sanitize_time_str(time_str: str, default: str = "00:00:00") -> str:
-    """Prüft, ob der Zeit-String das Format HH:MM:SS oder SS(.ms) einhält."""
     time_str = time_str.strip()
     if re.match(r"^(\d{2}:)?\d{2}:\d{2}(\.\d+)?$", time_str) or re.match(r"^\d+(\.\d+)?$", time_str):
         return time_str
     return default
 
 def sanitize_int(val_str: str, default: int = 0) -> int:
-    """Extrahiert sicher Ganzzahlen aus Benutzereingaben."""
     try:
         return abs(int(re.sub(r"[^\d]", "", val_str)))
     except ValueError:
@@ -144,475 +145,503 @@ def _codec_quality_args(codec, qmode, qval_raw, preset, infile):
         if "libvpx-vp9" not in codec: args += ["-preset", p]
     return args
 
-# -------------------- Hauptklasse --------------------
 
-class VideoConverterWindow(Gtk.Window):
+# -------------------- Drag and Drop ListWidget --------------------
+class FileListWidget(QListWidget):
+    def __init__(self, parent_window):
+        super().__init__()
+        self.parent_window = parent_window
+        self.setAcceptDrops(True)
+        self.setSelectionMode(QAbstractItemView.SelectionMode.ExtendedSelection)
+
+    def dragEnterEvent(self, event: QDragEnterEvent):
+        if event.mimeData().hasUrls(): event.acceptProposedAction()
+        else: event.ignore()
+
+    def dragMoveEvent(self, event):
+        if event.mimeData().hasUrls(): event.acceptProposedAction()
+        else: event.ignore()
+
+    def dropEvent(self, event: QDropEvent):
+        if event.mimeData().hasUrls():
+            for url in event.mimeData().urls():
+                file_path = url.toLocalFile()
+                if os.path.exists(file_path) and file_path not in self.parent_window.selected_files:
+                    self.parent_window.selected_files.append(file_path)
+                    self.addItem(os.path.basename(file_path))
+            event.acceptProposedAction()
+
+
+# -------------------- Worker Signals --------------------
+class ConversionSignals(QObject):
+    log_signal = pyqtSignal(str)
+    file_label_signal = pyqtSignal(str)
+    file_progress_signal = pyqtSignal(float)
+    total_progress_signal = pyqtSignal(float)
+    finished_signal = pyqtSignal()
+
+
+# -------------------- Hauptfenster --------------------
+class VideoConverterWindow(QMainWindow):
     def __init__(self):
         super().__init__()
-        # Sehr kompakte, feste Startgröße für moderne Displays:
-        self.set_default_size(860, 520)
-
-        # --- Pfad zum Logo ---
-        logo_file = Path(__file__).parent / "guideos-logo.png"
-
-        # --- HeaderBar Setup ---
-        header_bar = Gtk.HeaderBar()
-        header_bar.set_show_close_button(True)
-
-        # Logo zentriert einfügen (falls Datei existiert)
-        if logo_file.exists():
-            try:
-                # Hier die Höhe/Breite deines tatsächlichen Logos anpassen:
-                pixbuf = Pixbuf.new_from_file_at_scale(str(logo_file), width=-1, height=36, preserve_aspect_ratio=True)
-                header_logo = Gtk.Image.new_from_pixbuf(pixbuf)
-
-                # Platziert dein Logo mittig in der HeaderBar
-                header_bar.set_custom_title(header_logo)
-            except Exception as e:
-                print(f"Konnte Logo nicht laden: {e}")
-        else:
-            # Falls kein Logo da ist, Fallback auf Text-Titel
-            header_bar.set_title("GuideOS Videokonverter")
-
-        # ---------------------------------------------------------
-        # NEU: Button zum Wechseln ins Hochformat-Layout (rechts)
-        # ---------------------------------------------------------
-        btn_layout = Gtk.Button()
-        icon_layout = Gtk.Image.new_from_icon_name("view-refresh-symbolic", Gtk.IconSize.BUTTON)
-        btn_layout.set_image(icon_layout)
-        btn_layout.set_tooltip_text("Zum Hochformat-Layout wechseln")
-        btn_layout.connect("clicked", self.on_switch_layout)
-        header_bar.pack_end(btn_layout)
-        # ---------------------------------------------------------
-
-        self.set_titlebar(header_bar)
+        self.setWindowTitle("GuideOS Videokonverter")
+        self.resize(800, 380)
 
         self.selected_files = []
         self.current_proc = None
         self.stop_event = threading.Event()
+        self.signals = ConversionSignals()
 
-        # --- CSS / Theme Styling inkl. Farbiger HeaderBar ---
-        HEADER_BG_COLOR = "#2c3e50"
+        self.signals.log_signal.connect(self._safe_append_log)
+        self.signals.file_label_signal.connect(self._safe_set_file_label)
+        self.signals.file_progress_signal.connect(self._safe_set_file_progress)
+        self.signals.total_progress_signal.connect(self._safe_set_total_progress)
+        self.signals.finished_signal.connect(self._on_conversion_finished)
 
-        css_style = f"""
-            #btn-start {{ background-image: none; background-color: #27ae60; color: white; text-shadow: none; }}
-            #btn-start:hover {{ background-color: #2ecc71; }}
-            #btn-exit {{ background-image: none; background-color: #c0392b; color: white; text-shadow: none; }}
-            #btn-exit:hover {{ background-color: #e74c3c; }}
-            .prog-label {{ font-weight: bold; margin-top: 5px; }}
+        self._apply_styles()
+        self._init_ui()
 
-            headerbar {{
-                background-image: none;
-                background-color: {HEADER_BG_COLOR};
-                border-color: {HEADER_BG_COLOR};
-                min-height: 50px;
-            }}
+    def _apply_styles(self):
+        self.setStyleSheet("""
+            #btn-start { background-color: #27ae60; color: white; border-radius: 4px; padding: 6px; font-weight: bold; }
+            #btn-start:hover { background-color: #2ecc71; }
+            #btn-exit { background-color: #c0392b; color: white; border-radius: 4px; padding: 6px; font-weight: bold; }
+            #btn-exit:hover { background-color: #e74c3c; }
+            .prog-label { font-weight: bold; margin-top: 5px; }
+        """)
 
-            headerbar .title, headerbar .subtitle {{
-                color: #ffffff;
-            }}
-            headerbar button {{
-                color: #ffffff;
-            }}
-        """
+    def change_layout(self):
+        """Öffnet den Starter-Dialog zum Auswählen des Layouts und beendet das aktuelle Skript."""
+        starter_path = Path("/usr/lib/guideos-videokonverter/guideos-videokonverter-start.py")
 
-        css_provider = Gtk.CssProvider()
-        css_provider.load_from_data(css_style.encode('utf-8'))
-        Gtk.StyleContext.add_provider_for_screen(
-            Gdk.Screen.get_default(),
-            css_provider,
-            Gtk.STYLE_PROVIDER_PRIORITY_APPLICATION
+        if not starter_path.exists():
+            starter_path = Path(__file__).parent / "starter.py"
+
+        subprocess.Popen([sys.executable, str(starter_path), "--select"])
+        self.close()
+
+    def _init_ui(self):
+        central_widget = QWidget()
+        self.setCentralWidget(central_widget)
+
+        outer_vbox = QVBoxLayout(central_widget)
+        outer_vbox.setContentsMargins(0, 0, 0, 0)
+        outer_vbox.setSpacing(0)
+
+        # --- Top Header Bar mit Layout-Switch-Button ---
+        header_bar = QWidget()
+        header_bar.setObjectName("headerBar")
+        header_layout = QHBoxLayout(header_bar)
+        header_layout.setContentsMargins(10, 0, 10, 0)
+
+        title_lbl = QLabel("")
+        title_lbl.setObjectName("headerTitle")
+
+        self.layout_toggle_btn = QPushButton(" Layout wechseln")
+        self.layout_toggle_btn.setObjectName("btn-layout")
+        self.layout_toggle_btn.clicked.connect(self.change_layout)
+
+        header_layout.addWidget(title_lbl)
+        header_layout.addStretch()
+        header_layout.addWidget(self.layout_toggle_btn)
+        outer_vbox.addWidget(header_bar)
+
+        # ==================== Inhaltsbereich ====================
+        content_widget = QWidget()
+        main_hbox = QHBoxLayout(content_widget)
+        main_hbox.setContentsMargins(12, 12, 12, 12)
+        main_hbox.setSpacing(12)
+        outer_vbox.addWidget(content_widget)
+
+        # --- Linke Spalte: Tabbed Settings Container ---
+        self.notebook = QTabWidget()
+        main_hbox.addWidget(self.notebook, stretch=0)
+
+        # ---------------- TAB 1: Video & Hardware ----------------
+        tab_video = QWidget()
+        tab_video_vbox = QVBoxLayout(tab_video)
+        tab_video_vbox.setContentsMargins(10, 10, 10, 10)
+        tab_video_vbox.setSpacing(10)
+
+        grid_gpu = QGridLayout()
+        grid_gpu.setHorizontalSpacing(10)
+        grid_gpu.setVerticalSpacing(6)
+
+        grid_gpu.addWidget(QLabel("Erkannte GPU:"), 0, 0)
+        self.gpu_entry = QLineEdit(detect_gpu_short())
+        self.gpu_entry.setReadOnly(True)
+        grid_gpu.addWidget(self.gpu_entry, 0, 1)
+
+        grid_gpu.addWidget(QLabel("GPU / CPU Wahl:"), 1, 0)
+        self.gpu_combo = QComboBox()
+        self.gpu_combo.addItems(["Automatisch (empfohlen)", "NVIDIA", "AMD", "Intel", "Software (CPU)"])
+        self.gpu_combo.currentIndexChanged.connect(self._check_codec_hardware_support)
+        grid_gpu.addWidget(self.gpu_combo, 1, 1)
+
+        tab_video_vbox.addLayout(grid_gpu)
+
+        sep1 = QFrame()
+        sep1.setFrameShape(QFrame.Shape.HLine)
+        tab_video_vbox.addWidget(sep1)
+
+        grid_vopts = QGridLayout()
+        grid_vopts.setHorizontalSpacing(10)
+        grid_vopts.setVerticalSpacing(6)
+
+        grid_vopts.addWidget(QLabel("Container-Format:"), 0, 0)
+        self.format_combo = QComboBox()
+        self.format_combo.addItems(["MP4 (.mp4)", "Matroska (.mkv)", "WebM (.webm)"])
+        self.format_combo.currentIndexChanged.connect(self.on_format_changed)
+        grid_vopts.addWidget(self.format_combo, 0, 1)
+
+        grid_vopts.addWidget(QLabel("Video-Codec:"), 1, 0)
+        self.video_combo = QComboBox()
+        self.video_combo.addItems(["H.264", "H.265", "VP9", "AV1", "Nur Audio ändern"])
+        self.video_combo.setToolTip(
+            "• H.264 / H.265: Fast überall per Hardware beschleunigt\n"
+            "• VP9: HW-Beschleunigung primär auf Intel QuickSync / AMD\n"
+            "• AV1: HW-Beschleunigung nur auf neueren GPUs (RTX 40xx, RX 7000, Intel Arc)"
         )
+        self.video_combo.currentIndexChanged.connect(self._check_codec_hardware_support)
+        grid_vopts.addWidget(self.video_combo, 1, 1)
 
-        main_hbox = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=12)
-        main_hbox.set_margin_start(12); main_hbox.set_margin_end(12)
-        main_hbox.set_margin_top(12); main_hbox.set_margin_bottom(12)
-        self.add(main_hbox)
+        grid_vopts.addWidget(QLabel("Dimension:"), 2, 0)
+        self.dimension_combo = QComboBox()
+        self.dimension_combo.addItems(["Original", "720p (1280x720)", "1080p (1920x1080)", "1440p (2560x1440)", "2160p (3840x2160)"])
+        grid_vopts.addWidget(self.dimension_combo, 2, 1)
 
-        # --- Linke Seite: Tabs (Gtk.Notebook) ---
-        self.notebook = Gtk.Notebook()
-        self.notebook.set_scrollable(True)
-        main_hbox.pack_start(self.notebook, False, False, 0)
+        # --- Nachschärfungs-Dropdown für Lanczos-Upscaling ---
+        sharp_label = QLabel("Nachschärfung (Lanczos):")
+        sharp_label.setToolTip("Schärft skaliertes Videomaterial nach.\nEmpfehlung: Mittel")
+        grid_vopts.addWidget(sharp_label, 3, 0)
 
-        # ================= TAB 1: Video & Codecs =================
-        tab_video = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=10)
-        tab_video.set_margin_start(10); tab_video.set_margin_end(10)
-        tab_video.set_margin_top(10); tab_video.set_margin_bottom(10)
+        self.sharpen_combo = QComboBox()
+        self.sharpen_combo.addItems(["Aus", "Leicht", "Mittel (Empfohlen)", "Stark"])
+        self.sharpen_combo.setCurrentIndex(0)  # Vorauswahl: Mittel (Empfohlen)
+        grid_vopts.addWidget(self.sharpen_combo, 3, 1)
 
-        grid_gpu = Gtk.Grid(column_spacing=10, row_spacing=6)
-        tab_video.pack_start(grid_gpu, False, False, 0)
+        grid_vopts.addWidget(QLabel("Farbtiefe:"), 4, 0)
+        self.bit_combo = QComboBox()
+        self.bit_combo.addItems(["8-Bit (Standard)", "10-Bit (HDR/High)"])
+        grid_vopts.addWidget(self.bit_combo, 4, 1)
 
-        grid_gpu.attach(Gtk.Label(label="Erkannte GPU:", xalign=0), 0, 0, 1, 1)
-        self.gpu_entry = Gtk.Entry(editable=False, text=detect_gpu_short())
-        grid_gpu.attach(self.gpu_entry, 1, 0, 1, 1)
+        grid_vopts.addWidget(QLabel("Qualität Modus:"), 5, 0)
+        self.quality_combo = QComboBox()
+        self.quality_combo.addItems(["CQ (Qualitätsbasiert)", "Bitrate (kbit/s)", "Zieldateigröße (MB)"])
+        self.quality_combo.currentIndexChanged.connect(self.on_quality_mode_changed)
+        grid_vopts.addWidget(self.quality_combo, 5, 1)
 
-        grid_gpu.attach(Gtk.Label(label="GPU / CPU Wahl:", xalign=0), 0, 1, 1, 1)
-        self.gpu_combo = self._create_wayland_ready_combo(["Automatisch (empfohlen)", "NVIDIA", "AMD", "Intel", "Software (CPU)"])
-        self.gpu_combo.connect("changed", self._check_codec_hardware_support)
-        grid_gpu.attach(self.gpu_combo, 1, 1, 1, 1)
+        self.quality_label = QLabel("CRF Wert (0-51):")
+        grid_vopts.addWidget(self.quality_label, 6, 0)
+        self.quality_entry = QLineEdit("23")
+        self.quality_label.setToolTip("Der CRF Wert bestimmt die Qualität.\nEin kleinerer Wert bedeutet höhere Qualität, aber auch eine größere Ausgabedatei.")
+        grid_vopts.addWidget(self.quality_entry, 6, 1)
 
-        tab_video.pack_start(Gtk.Separator(), False, False, 2)
+        grid_vopts.addWidget(QLabel("Analyse-Stufe:"), 7, 0)
+        self.preset_combo = QComboBox()
+        self.preset_combo.addItems(["ultrafast", "superfast", "veryfast", "faster", "fast", "medium", "slow", "slower", "veryslow"])
+        self.preset_combo.setCurrentIndex(5)
+        grid_vopts.addWidget(self.preset_combo, 7, 1)
 
-        grid_vopts = Gtk.Grid(column_spacing=10, row_spacing=6)
-        tab_video.pack_start(grid_vopts, False, False, 0)
+        tab_video_vbox.addLayout(grid_vopts)
 
-        grid_vopts.attach(Gtk.Label(label="Container-Format:", xalign=0), 0, 0, 1, 1)
-        self.format_combo = self._create_wayland_ready_combo(["MP4 (.mp4)", "Matroska (.mkv)", "WebM (.webm)"])
-        self.format_combo.connect("changed", self.on_format_changed)
-        grid_vopts.attach(self.format_combo, 1, 0, 1, 1)
+        self.hw_warning_label = QLabel("")
+        self.hw_warning_label.setWordWrap(True)
+        tab_video_vbox.addWidget(self.hw_warning_label)
+        tab_video_vbox.addStretch()
 
-        grid_vopts.attach(Gtk.Label(label="Video-Codec:", xalign=0), 0, 1, 1, 1)
-        self.video_combo = self._create_wayland_ready_combo(["H.264", "H.265", "VP9", "AV1", "Nur Audio ändern"])
-        self.video_combo.connect("changed", self._check_codec_hardware_support)
-        grid_vopts.attach(self.video_combo, 1, 1, 1, 1)
+        self.notebook.addTab(tab_video, "Video & GPU")
 
-        grid_vopts.attach(Gtk.Label(label="Dimension:", xalign=0), 0, 2, 1, 1)
-        self.dimension_combo = self._create_wayland_ready_combo(["Original", "720p (1280x720)", "1080p (1920x1080)", "1440p (2560x1440)", "2160p (3840x2160)"])
-        grid_vopts.attach(self.dimension_combo, 1, 2, 1, 1)
+        # ---------------- TAB 2: Audio & Schnitt ----------------
+        tab_audio = QWidget()
+        tab_audio_vbox = QVBoxLayout(tab_audio)
+        tab_audio_vbox.setContentsMargins(10, 10, 10, 10)
+        tab_audio_vbox.setSpacing(10)
 
-        grid_vopts.attach(Gtk.Label(label="Farbtiefe:", xalign=0), 0, 3, 1, 1)
-        self.bit_combo = self._create_wayland_ready_combo(["8-Bit (Standard)", "10-Bit (HDR/High)"])
-        grid_vopts.attach(self.bit_combo, 1, 3, 1, 1)
+        grid_audio = QGridLayout()
+        grid_audio.setHorizontalSpacing(10)
+        grid_audio.setVerticalSpacing(8)
 
-        grid_vopts.attach(Gtk.Label(label="Qualität Modus:", xalign=0), 0, 4, 1, 1)
-        self.quality_combo = self._create_wayland_ready_combo(["CQ (Qualitätsbasiert)","Bitrate (kbit/s)","Zieldateigröße (MB)"])
-        self.quality_combo.connect("changed", self.on_quality_mode_changed)
-        grid_vopts.attach(self.quality_combo, 1, 4, 1, 1)
+        grid_audio.addWidget(QLabel("Audioformat:"), 0, 0)
+        self.audio_combo = QComboBox()
+        self.audio_combo.addItems(["Opus (WebM/MKV)", "AAC", "PCM", "FLAC (mkv)"])
+        self.audio_combo.setCurrentIndex(1)
+        grid_audio.addWidget(self.audio_combo, 0, 1)
 
-        self.quality_label = Gtk.Label(label="CRF Wert (0-51):", xalign=0)
-        grid_vopts.attach(self.quality_label, 0, 5, 1, 1)
-        self.quality_entry = Gtk.Entry(text="23")
-        grid_vopts.attach(self.quality_entry, 1, 5, 1, 1)
+        norm_lbl = QLabel("Normalisierung (LUFS):")
+        norm_lbl.setToolTip("Passt die Lautstärke an (-16 Web, -23 TV)")
+        grid_audio.addWidget(norm_lbl, 1, 0)
+        self.volume_spin = QSpinBox()
+        self.volume_spin.setRange(-30, -5)
+        self.volume_spin.setValue(-16)
+        grid_audio.addWidget(self.volume_spin, 1, 1)
 
-        grid_vopts.attach(Gtk.Label(label="Analyse-Stufe:", xalign=0), 0, 6, 1, 1)
-        self.preset_combo = self._create_wayland_ready_combo(["ultrafast", "superfast", "veryfast", "faster", "fast", "medium", "slow", "slower", "veryslow"], active_idx=5)
-        grid_vopts.attach(self.preset_combo, 1, 6, 1, 1)
+        self.audio_copy_chk = QCheckBox("Audio kopieren (Kein Filter)")
+        self.audio_copy_chk.setToolTip("nützlich beim Bearbeiten von 5.1 Material")
+        self.audio_copy_chk.toggled.connect(self.on_audio_copy_toggled)
+        grid_audio.addWidget(self.audio_copy_chk, 2, 1)
 
-        self.hw_warning_label = Gtk.Label(xalign=0)
-        self.hw_warning_label.set_line_wrap(True)
-        tab_video.pack_start(self.hw_warning_label, False, False, 0)
+        tab_audio_vbox.addLayout(grid_audio)
 
-        self.notebook.append_page(tab_video, Gtk.Label(label="Video & GPU"))
+        sep2 = QFrame()
+        sep2.setFrameShape(QFrame.Shape.HLine)
+        tab_audio_vbox.addWidget(sep2)
 
-        # ================= TAB 2: Audio & Schnitt =================
-        tab_audio = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=10)
-        tab_audio.set_margin_start(10); tab_audio.set_margin_end(10)
-        tab_audio.set_margin_top(10); tab_audio.set_margin_bottom(10)
+        self.btn_preview = QPushButton("Schnittbereich festlegen (Vorschau)")
+        self.btn_preview.clicked.connect(self.on_open_preview)
+        tab_audio_vbox.addWidget(self.btn_preview)
 
-        grid_audio = Gtk.Grid(column_spacing=10, row_spacing=8)
-        tab_audio.pack_start(grid_audio, False, False, 0)
+        grid_time = QGridLayout()
+        grid_time.setHorizontalSpacing(10)
+        grid_time.setVerticalSpacing(6)
 
-        grid_audio.attach(Gtk.Label(label="Audioformat:", xalign=0), 0, 0, 1, 1)
-        self.audio_combo = self._create_wayland_ready_combo(["Opus (WebM/MKV)", "AAC", "PCM", "FLAC (mkv)"], active_idx=1)
-        grid_audio.attach(self.audio_combo, 1, 0, 1, 1)
+        grid_time.addWidget(QLabel("Startzeit:"), 0, 0)
+        self.start_entry = QLineEdit("00:00:00")
+        grid_time.addWidget(self.start_entry, 0, 1)
 
-        norm_label = Gtk.Label(label="Normalisierung (LUFS):", xalign=0)
-        grid_audio.attach(norm_label, 0, 1, 1, 1)
-        self.volume_spin = Gtk.SpinButton.new_with_range(-30, -5, 1)
-        self.volume_spin.set_value(-16)
-        grid_audio.attach(self.volume_spin, 1, 1, 1, 1)
+        grid_time.addWidget(QLabel("Dauer (sek):"), 1, 0)
+        self.duration_limit_entry = QLineEdit("0")
+        grid_time.addWidget(self.duration_limit_entry, 1, 1)
 
-        self.audio_copy_chk = Gtk.CheckButton(label="Audio kopieren (Kein Filter)")
-        self.audio_copy_chk.connect("toggled", self.on_audio_copy_toggled)
-        grid_audio.attach(self.audio_copy_chk, 1, 2, 1, 1)
+        tab_audio_vbox.addLayout(grid_time)
+        tab_audio_vbox.addStretch()
 
-        tab_audio.pack_start(Gtk.Separator(), False, False, 5)
+        self.notebook.addTab(tab_audio, "Audio & Schnitt")
 
-        self.btn_preview = Gtk.Button(label="Schnittbereich festlegen (Vorschau)")
-        self.btn_preview.connect("clicked", self.on_open_preview)
-        tab_audio.pack_start(self.btn_preview, False, False, 0)
+        # ---------------- TAB 3: Dateiverwaltung & Start ----------------
+        tab_export = QWidget()
+        tab_export_vbox = QVBoxLayout(tab_export)
+        tab_export_vbox.setContentsMargins(10, 10, 10, 10)
+        tab_export_vbox.setSpacing(10)
 
-        grid_time = Gtk.Grid(column_spacing=10, row_spacing=6)
-        tab_audio.pack_start(grid_time, False, False, 0)
-        grid_time.attach(Gtk.Label(label="Startzeit:", xalign=0), 0, 0, 1, 1)
-        self.start_entry = Gtk.Entry(text="00:00:00")
-        grid_time.attach(self.start_entry, 1, 0, 1, 1)
+        self.btn_files = QPushButton("Dateien auswählen")
+        self.btn_files.clicked.connect(self.on_select_files)
+        tab_export_vbox.addWidget(self.btn_files)
 
-        grid_time.attach(Gtk.Label(label="Dauer (sek):", xalign=0), 0, 1, 1, 1)
-        self.duration_limit_entry = Gtk.Entry(text="0")
-        grid_time.attach(self.duration_limit_entry, 1, 1, 1, 1)
+        self.btn_remove = QPushButton("Ausgewählte entfernen")
+        self.btn_remove.clicked.connect(self.on_remove_selected)
+        tab_export_vbox.addWidget(self.btn_remove)
 
-        self.notebook.append_page(tab_audio, Gtk.Label(label="Audio & Schnitt"))
+        sep3 = QFrame()
+        sep3.setFrameShape(QFrame.Shape.HLine)
+        tab_export_vbox.addWidget(sep3)
 
-        # ================= TAB 3: Pfade & Export =================
-        tab_export = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=10)
-        tab_export.set_margin_start(10); tab_export.set_margin_end(10)
-        tab_export.set_margin_top(10); tab_export.set_margin_bottom(10)
+        tab_export_vbox.addWidget(QLabel("Zielordner (leer -> auto/converted):"))
+        self.target_entry = QLineEdit()
+        tab_export_vbox.addWidget(self.target_entry)
 
-        self.btn_files = Gtk.Button(label="Dateien auswählen")
-        self.btn_files.connect("clicked", self.on_select_files)
-        tab_export.pack_start(self.btn_files, False, False, 0)
+        self.btn_target = QPushButton("Zielverzeichnis suchen")
+        self.btn_target.clicked.connect(self.on_browse_target)
+        tab_export_vbox.addWidget(self.btn_target)
 
-        self.btn_remove = Gtk.Button(label="Ausgewählte aus Liste entfernen")
-        self.btn_remove.connect("clicked", self.on_remove_selected)
-        tab_export.pack_start(self.btn_remove, False, False, 0)
+        self.save_in_source_chk = QCheckBox("Im Quellverzeichnis speichern")
+        tab_export_vbox.addWidget(self.save_in_source_chk)
 
-        tab_export.pack_start(Gtk.Separator(), False, False, 2)
+        self.keep_rotation_chk = QCheckBox("Metadaten-Rotation (9:16) beibehalten")
+        self.keep_rotation_chk.setChecked(True)
+        tab_export_vbox.addWidget(self.keep_rotation_chk)
 
-        tab_export.pack_start(Gtk.Label(label="Zielordner (leer -> auto/converted):", xalign=0), False, False, 0)
-        self.target_entry = Gtk.Entry()
-        tab_export.pack_start(self.target_entry, False, False, 0)
+        sep4 = QFrame()
+        sep4.setFrameShape(QFrame.Shape.HLine)
+        tab_export_vbox.addWidget(sep4)
 
-        self.btn_target = Gtk.Button(label="Zielverzeichnis suchen")
-        self.btn_target.connect("clicked", self.on_browse_target)
-        tab_export.pack_start(self.btn_target, False, False, 0)
+        action_grid = QGridLayout()
+        action_grid.setHorizontalSpacing(6)
+        action_grid.setVerticalSpacing(6)
 
-        self.save_in_source_chk = Gtk.CheckButton(label="Im Quellverzeichnis speichern")
-        tab_export.pack_start(self.save_in_source_chk, False, False, 0)
+        self.start_btn = QPushButton("Konvertieren")
+        self.start_btn.setObjectName("btn-start")
+        self.start_btn.clicked.connect(self.start_conversion)
+        action_grid.addWidget(self.start_btn, 0, 0)
 
-        self.keep_rotation_chk = Gtk.CheckButton(label="Metadaten-Rotation (9:16) beibehalten")
-        self.keep_rotation_chk.set_active(True)
-        tab_export.pack_start(self.keep_rotation_chk, False, False, 0)
+        self.cancel_btn = QPushButton("Abbrechen")
+        self.cancel_btn.setEnabled(False)
+        self.cancel_btn.clicked.connect(self.cancel_conversion)
+        action_grid.addWidget(self.cancel_btn, 0, 1)
 
-        tab_export.pack_start(Gtk.Separator(), False, False, 2)
+        self.exit_btn = QPushButton("Programm beenden")
+        self.exit_btn.setObjectName("btn-exit")
+        self.exit_btn.clicked.connect(self.close)
+        action_grid.addWidget(self.exit_btn, 1, 0)
 
-        action_grid = Gtk.Grid(column_spacing=6, row_spacing=6)
-        action_grid.set_column_homogeneous(True)
-        tab_export.pack_start(action_grid, False, False, 0)
+        self.reset_btn = QPushButton("Reset")
+        self.reset_btn.clicked.connect(self.on_reset_all)
+        action_grid.addWidget(self.reset_btn, 1, 1)
 
-        self.start_btn = Gtk.Button(label="Konvertieren")
-        self.start_btn.set_name("btn-start")
-        self.start_btn.connect("clicked", self.start_conversion)
-        action_grid.attach(self.start_btn, 0, 0, 1, 1)
+        tab_export_vbox.addLayout(action_grid)
+        tab_export_vbox.addStretch()
 
-        self.cancel_btn = Gtk.Button(label="Abbrechen", sensitive=False)
-        self.cancel_btn.connect("clicked", self.cancel_conversion)
-        action_grid.attach(self.cancel_btn, 1, 0, 1, 1)
+        self.notebook.addTab(tab_export, "Dateien & Start")
 
-        self.exit_btn = Gtk.Button(label="Programm beenden")
-        self.exit_btn.set_name("btn-exit")
-        self.exit_btn.connect("clicked", lambda w: self.close())
-        action_grid.attach(self.exit_btn, 0, 1, 1, 1)
+        # --- Rechte Spalte: Dateiliste & Progress / Log ---
+        right_vbox = QVBoxLayout()
+        main_hbox.addLayout(right_vbox, stretch=1)
 
-        self.reset_btn = Gtk.Button(label="Reset")
-        self.reset_btn.connect("clicked", self.on_reset_all)
-        action_grid.attach(self.reset_btn, 1, 1, 1, 1)
+        self.file_list = FileListWidget(self)
+        right_vbox.addWidget(self.file_list, stretch=1)
 
-        self.notebook.append_page(tab_export, Gtk.Label(label="Dateien & Start"))
+        self.file_label = QLabel("Fortschritt: Keine Datei aktiv")
+        self.file_label.setProperty("class", "prog-label")
+        right_vbox.addWidget(self.file_label)
 
-        # --- Rechte Spalte (Dateiliste + Log) ---
-        right_vbox = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=10)
-        main_hbox.pack_start(right_vbox, True, True, 0)
+        self.file_progress = QProgressBar()
+        self.file_progress.setRange(0, 100)
+        self.file_progress.setValue(0)
+        right_vbox.addWidget(self.file_progress)
 
-        self.liststore = Gtk.ListStore(str)
-        self.treeview = Gtk.TreeView(model=self.liststore)
-        self.treeview.append_column(Gtk.TreeViewColumn("Ausgewählte Dateien", Gtk.CellRendererText(), text=0))
-        self.treeview.get_selection().set_mode(Gtk.SelectionMode.MULTIPLE)
+        self.total_label = QLabel("Gesamtfortschritt")
+        self.total_label.setProperty("class", "prog-label")
+        right_vbox.addWidget(self.total_label)
 
-        self.treeview.drag_dest_set(Gtk.DestDefaults.ALL, [], Gdk.DragAction.COPY)
-        self.treeview.drag_dest_add_uri_targets()
-        self.treeview.connect("drag-data-received", self.on_drag_data_received)
+        self.total_progress = QProgressBar()
+        self.total_progress.setRange(0, 100)
+        self.total_progress.setValue(0)
+        right_vbox.addWidget(self.total_progress)
 
-        scroll_tree = Gtk.ScrolledWindow(min_content_height=110)
-        scroll_tree.add(self.treeview)
-        right_vbox.pack_start(scroll_tree, True, True, 0)
+        self.log_view = QTextEdit()
+        self.log_view.setReadOnly(True)
+        right_vbox.addWidget(self.log_view, stretch=1)
 
-        self.file_label = Gtk.Label(label="Fortschritt: Keine Datei aktiv", xalign=0)
-        self.file_label.get_style_context().add_class("prog-label")
-        right_vbox.pack_start(self.file_label, False, False, 0)
-        self.file_progress = Gtk.ProgressBar()
-        right_vbox.pack_start(self.file_progress, False, False, 0)
-
-        self.total_label = Gtk.Label(label="Gesamtfortschritt", xalign=0)
-        self.total_label.get_style_context().add_class("prog-label")
-        right_vbox.pack_start(self.total_label, False, False, 0)
-        self.total_progress = Gtk.ProgressBar()
-        right_vbox.pack_start(self.total_progress, False, False, 0)
-
-        self.log_view = Gtk.TextView(editable=False, cursor_visible=False, wrap_mode=Gtk.WrapMode.WORD)
-        scroll_log = Gtk.ScrolledWindow(min_content_height=130)
-        scroll_log.add(self.log_view)
-        right_vbox.pack_start(scroll_log, True, True, 0)
-
-        self.show_all()
-
-    def on_switch_layout(self, widget):
-        """Speichert 'h' in der Config, startet guideos-videokonverter-h.py und schließt dieses Fenster."""
-        script_dir = Path(__file__).parent
-        target_script = script_dir / "guideos-videokonverter-h.py"
-
-        # Pfad zur layout.conf im Home-Verzeichnis
-        config_file = Path.home() / ".config" / "guideos-videokonverter" / "layout.conf"
-
-        try:
-            # 1. Config auf 'h' (Hochformat) aktualisieren
-            config_file.parent.mkdir(parents=True, exist_ok=True)
-            config_file.write_text("h\n")
-
-            # 2. Hochformat-Skript direkt starten
-            if target_script.exists():
-                subprocess.Popen([sys.executable, str(target_script)])
-                self.close()
-            else:
-                self.append_log(f"\n[Fehler] Hochformat-Skript nicht gefunden: {target_script.name}\n")
-        except Exception as e:
-            self.append_log(f"\n[Fehler] Fehler beim Layout-Wechsel: {e}\n")
-
-    def _create_wayland_ready_combo(self, items, active_idx=0):
-        combo = Gtk.ComboBoxText()
-        combo.set_property("popup-fixed-width", True)
-        combo.set_wrap_width(1)
-        for item in items:
-            combo.append_text(item)
-        combo.set_active(active_idx)
-        return combo
-
+    # -------------------- Logic & Handlers --------------------
     def _check_codec_hardware_support(self, *args):
-        codec = self.video_combo.get_active_text() or ""
-        gpu_sel = self.gpu_combo.get_active_text() or ""
+        codec = self.video_combo.currentText() or ""
+        gpu_sel = self.gpu_combo.currentText() or ""
 
         detected_gpu = detect_gpu_short()
         gpu = detected_gpu if "Automatisch" in gpu_sel else gpu_sel.upper()
 
         warning_text = ""
-
         if "VP9" in codec and "NVIDIA" in gpu:
-            warning_text = (
-                "⚠️ <b>VP9:</b> NVIDIA unterstützt kein HW-Encoding für VP9.\n"
-                "Bitte auf <b>Software (CPU)</b> umstellen."
-            )
-        elif "VP9" in codec and "AMD" in gpu:
-            warning_text = (
-                "⚠️ <b>VP9:</b> AMD unterstützt kein HW-Encoding für VP9.\n"
-                "Bitte auf <b>Software (CPU)</b> umstellen."
-            )
+            warning_text = "⚠️ <b>Hinweis (VP9):</b> NVIDIA bietet kein HW-Encoding für VP9.<br>Bitte auf <b>Software (CPU)</b> ausweichen."
         elif "AV1" in codec and "NVIDIA" in gpu:
-            warning_text = (
-                "💡 <b>AV1:</b> Benötigt eine <b>RTX 40xx+</b>.\n"
-                "Sonst bitte <b>Software (CPU)</b> nutzen."
-            )
+            warning_text = "💡 <b>Hinweis (AV1):</b> HW-Encoding benötigt eine <b>RTX 40xx+</b>."
         elif "AV1" in codec and "AMD" in gpu:
-            warning_text = (
-                "💡 <b>AV1:</b> Benötigt eine <b>Radeon RX 7000+</b>.\n"
-                "Sonst bitte <b>Software (CPU)</b> nutzen."
-            )
+            warning_text = "💡 <b>Hinweis (AV1):</b> HW-Encoding erfordert eine <b>Radeon RX 7000+</b>."
         elif "AV1" in codec and "INTEL" in gpu:
-            warning_text = (
-                "💡 <b>AV1:</b> Benötigt eine <b>Intel Arc</b> GPU.\n"
-                "Sonst bitte <b>Software (CPU)</b> nutzen."
-            )
+            warning_text = "💡 <b>Hinweis (AV1):</b> HW-Encoding benötigt eine <b>Intel Arc</b> GPU."
 
         if warning_text:
-            self.hw_warning_label.set_markup(f'<span foreground="#d35400"><small>{warning_text}</small></span>')
+            self.hw_warning_label.setText(f'<span style="color: #d35400;"><small>{warning_text}</small></span>')
         else:
-            self.hw_warning_label.set_markup("")
+            self.hw_warning_label.setText("")
 
     def _update_video_codecs_for_container(self):
-        container = self.format_combo.get_active_text() or ""
-        current_codec = self.video_combo.get_active_text() or ""
+        container = self.format_combo.currentText() or ""
+        current_codec = self.video_combo.currentText() or ""
 
-        self.video_combo.remove_all()
+        self.video_combo.blockSignals(True)
+        self.video_combo.clear()
 
         if "WebM" in container:
             valid_codecs = ["VP9", "AV1", "Nur Audio ändern"]
-            for c in valid_codecs:
-                self.video_combo.append_text(c)
+            self.video_combo.addItems(valid_codecs)
             if current_codec in valid_codecs:
-                self.video_combo.set_active(valid_codecs.index(current_codec))
+                self.video_combo.setCurrentIndex(valid_codecs.index(current_codec))
             else:
-                self.video_combo.set_active(0)
+                self.video_combo.setCurrentIndex(0)
         else:
             all_codecs = ["H.264", "H.265", "VP9", "AV1", "Nur Audio ändern"]
-            for c in all_codecs:
-                self.video_combo.append_text(c)
+            self.video_combo.addItems(all_codecs)
             if current_codec in all_codecs:
-                self.video_combo.set_active(all_codecs.index(current_codec))
+                self.video_combo.setCurrentIndex(all_codecs.index(current_codec))
             else:
-                self.video_combo.set_active(0)
+                self.video_combo.setCurrentIndex(0)
 
+        self.video_combo.blockSignals(False)
         self._check_codec_hardware_support()
 
-    def on_format_changed(self, combo):
-        fmt = combo.get_active_text()
+    def on_format_changed(self, index):
+        fmt = self.format_combo.currentText()
         self._update_video_codecs_for_container()
 
         if fmt and "WebM" in fmt:
-            self.audio_combo.set_active(0)
+            self.audio_combo.setCurrentIndex(0)
         elif fmt and ("MP4" in fmt or "Matroska" in fmt):
-            if self.audio_combo.get_active() == 0:
-                self.audio_combo.set_active(1)
+            if self.audio_combo.currentIndex() == 0:
+                self.audio_combo.setCurrentIndex(1)
 
-    def on_audio_copy_toggled(self, btn):
-        active = btn.get_active()
-        self.audio_combo.set_sensitive(not active)
-        self.volume_spin.set_sensitive(not active)
+    def on_audio_copy_toggled(self, checked):
+        self.audio_combo.setEnabled(not checked)
+        self.volume_spin.setEnabled(not checked)
 
-    def on_drag_data_received(self, widget, context, x, y, selection, info, time):
-        uris = selection.get_uris()
-        for uri in uris:
-            path = urllib.parse.unquote(uri.replace('file://', ''))
-            if os.path.exists(path) and path not in self.selected_files:
-                self.selected_files.append(path)
-                self.liststore.append([os.path.basename(path)])
-        context.finish(True, False, time)
-
-    def on_reset_all(self, btn):
-        self.selected_files.clear(); self.liststore.clear()
-        self.file_progress.set_fraction(0); self.total_progress.set_fraction(0)
-        self.file_label.set_text("Fortschritt: Keine Datei aktiv")
-        self.log_view.get_buffer().set_text("")
-        self.start_entry.set_text("00:00:00")
-        self.duration_limit_entry.set_text("0")
-        self.gpu_combo.set_active(0)
-        self.format_combo.set_active(0)
+    def on_reset_all(self):
+        self.selected_files.clear()
+        self.file_list.clear()
+        self.file_progress.setValue(0)
+        self.total_progress.setValue(0)
+        self.file_label.setText("Fortschritt: Keine Datei aktiv")
+        self.log_view.clear()
+        self.start_entry.setText("00:00:00")
+        self.duration_limit_entry.setText("0")
+        self.gpu_combo.setCurrentIndex(0)
+        self.format_combo.setCurrentIndex(0)
         self._update_video_codecs_for_container()
-        self.dimension_combo.set_active(0)
-        self.audio_combo.set_active(1)
-        self.video_combo.set_active(0)
-        self.bit_combo.set_active(0)
-        self.quality_combo.set_active(0)
-        self.preset_combo.set_active(5)
-        self.volume_spin.set_value(-16)
-        self.audio_copy_chk.set_active(False)
-        self.quality_entry.set_text("23")
-        self.target_entry.set_text("")
-        self.save_in_source_chk.set_active(False)
-        self.keep_rotation_chk.set_active(True)
+        self.dimension_combo.setCurrentIndex(0)
+        self.sharpen_combo.setCurrentIndex(0)
+        self.audio_combo.setCurrentIndex(1)
+        self.video_combo.setCurrentIndex(0)
+        self.bit_combo.setCurrentIndex(0)
+        self.quality_combo.setCurrentIndex(0)
+        self.preset_combo.setCurrentIndex(5)
+        self.volume_spin.setValue(-16)
+        self.audio_copy_chk.setChecked(False)
+        self.quality_entry.setText("23")
+        self.target_entry.setText("")
+        self.save_in_source_chk.setChecked(False)
+        self.keep_rotation_chk.setChecked(True)
         self._check_codec_hardware_support()
 
-    def on_quality_mode_changed(self, combo):
-        m = combo.get_active_text()
+    def on_quality_mode_changed(self, index):
+        m = self.quality_combo.currentText()
         if not m: return
-        if "CQ" in m: self.quality_label.set_text("CRF (0-51):"); self.quality_entry.set_text("23")
-        elif "Bitrate" in m: self.quality_label.set_text("kbit/s:"); self.quality_entry.set_text("5000")
-        else: self.quality_label.set_text("MB:"); self.quality_entry.set_text("700")
+        if "CQ" in m:
+            self.quality_label.setText("CRF (0-51):")
+            self.quality_entry.setText("23")
+        elif "Bitrate" in m:
+            self.quality_label.setText("kbit/s:")
+            self.quality_entry.setText("5000")
+        else:
+            self.quality_label.setText("MB:")
+            self.quality_entry.setText("700")
 
-    def on_select_files(self, btn):
-        dialog = Gtk.FileChooserDialog(title="Videos wählen", parent=self, action=Gtk.FileChooserAction.OPEN,
-                                      buttons=(Gtk.STOCK_CANCEL, Gtk.ResponseType.CANCEL, Gtk.STOCK_OPEN, Gtk.ResponseType.OK))
-        dialog.set_select_multiple(True)
-        if dialog.run() == Gtk.ResponseType.OK:
-            for f in dialog.get_filenames():
+    def on_select_files(self):
+        files, _ = QFileDialog.getOpenFileNames(self, "Videos wählen", "", "Video Files (*.mp4 *.mkv *.avi *.mov *.webm *.flv *.wmv)")
+        if files:
+            for f in files:
                 if f not in self.selected_files:
-                    self.selected_files.append(f); self.liststore.append([Path(f).name])
-        dialog.destroy()
+                    self.selected_files.append(f)
+                    self.file_list.addItem(Path(f).name)
 
-    def on_remove_selected(self, btn):
-        model, paths = self.treeview.get_selection().get_selected_rows()
-        for p in reversed(paths):
-            idx = p.get_indices()[0]
-            del self.selected_files[idx]
-            model.remove(model.get_iter(p))
+    def on_remove_selected(self):
+        selected_items = self.file_list.selectedItems()
+        if not selected_items: return
+        for item in selected_items:
+            row = self.file_list.row(item)
+            del self.selected_files[row]
+            self.file_list.takeItem(row)
 
-    def on_browse_target(self, btn):
-        dialog = Gtk.FileChooserDialog(title="Ziel wählen", parent=self, action=Gtk.FileChooserAction.SELECT_FOLDER,
-                                      buttons=(Gtk.STOCK_CANCEL, Gtk.ResponseType.CANCEL, Gtk.STOCK_OPEN, Gtk.ResponseType.OK))
-        if dialog.run() == Gtk.ResponseType.OK: self.target_entry.set_text(dialog.get_filename())
-        dialog.destroy()
+    def on_browse_target(self):
+        folder = QFileDialog.getExistingDirectory(self, "Ziel wählen")
+        if folder:
+            self.target_entry.setText(folder)
 
-    def on_open_preview(self, btn):
-        if not self.selected_files or not VideoPreviewDialog: return
+    def on_open_preview(self):
+        if not self.selected_files or not VideoPreviewDialog:
+            return
+
         dialog = VideoPreviewDialog(self, self.selected_files[0])
-        if dialog.run() == Gtk.ResponseType.OK:
+        if dialog.exec() == VideoPreviewDialog.DialogCode.Accepted:
             s, e = dialog.get_range()
-            self.start_entry.set_text(f"{int(s//3600):02d}:{int((s%3600)//60):02d}:{s%60:05.2f}")
-            self.duration_limit_entry.set_text(f"{e-s:.2f}")
-        dialog.destroy()
+            start_formatted = f"{int(s//3600):02d}:{int((s%3600)//60):02d}:{s%60:05.2f}"
+            self.start_entry.setText(start_formatted)
+            duration_diff = max(0.0, e - s)
+            self.duration_limit_entry.setText(f"{duration_diff:.2f}")
 
     def build_ffmpeg_args(self, infile, outfile):
-        sel_text = self.gpu_combo.get_active_text()
-        keep_rotation = self.keep_rotation_chk.get_active()
-        container_choice = self.format_combo.get_active_text()
+        sel_text = self.gpu_combo.currentText()
+        keep_rotation = self.keep_rotation_chk.isChecked()
+        container_choice = self.format_combo.currentText()
         is_webm = "WebM" in container_choice
 
         if "NVIDIA" in sel_text: hw_mode = "NVIDIA"
@@ -621,13 +650,27 @@ class VideoConverterWindow(Gtk.Window):
         elif "Software" in sel_text: hw_mode = "CPU"
         else: hw_mode = detect_gpu_short().upper()
 
-        vchoice, achoice = self.video_combo.get_active_text(), self.audio_combo.get_active_text()
-        qmode, qval_raw = self.quality_combo.get_active_text(), self.quality_entry.get_text()
-        upscale = self.dimension_combo.get_active_text()
-        preset = self.preset_combo.get_active_text()
-        audio_copy = self.audio_copy_chk.get_active()
-        target_lufs = int(self.volume_spin.get_value())
-        is_10bit = "10-Bit" in self.bit_combo.get_active_text()
+        vchoice, achoice = self.video_combo.currentText(), self.audio_combo.currentText()
+        qmode, qval_raw = self.quality_combo.currentText(), self.quality_entry.text()
+        upscale = self.dimension_combo.currentText()
+        sharpen_mode = self.sharpen_combo.currentText()
+        preset = self.preset_combo.currentText()
+        audio_copy = self.audio_copy_chk.isChecked()
+        target_lufs = int(self.volume_spin.value())
+        is_10bit = "10-Bit" in self.bit_combo.currentText()
+
+        # Schärfe-Parameter
+        cas_val = None
+        unsharp_val = None
+        if "Leicht" in sharpen_mode:
+            cas_val = "0.3"
+            unsharp_val = "3:3:0.4:3:3:0.0"
+        elif "Mittel" in sharpen_mode:
+            cas_val = "0.5"
+            unsharp_val = "5:5:0.8:5:5:0.0"
+        elif "Stark" in sharpen_mode:
+            cas_val = "0.8"
+            unsharp_val = "7:7:1.2:7:7:0.0"
 
         if is_webm:
             if vchoice not in ["VP9", "AV1"]:
@@ -639,28 +682,28 @@ class VideoConverterWindow(Gtk.Window):
         if keep_rotation:
             args += ["-noautorotate"]
 
+        # Hardware-Decoder-Optionen
         if vchoice != "Nur Audio ändern" and hw_mode != "CPU":
             if "NVIDIA" in hw_mode:
-                args += ["-hwaccel", "cuda", "-hwaccel_output_format", "cuda"]
+                # Nutze -hwaccel cuda ohne erzwungenes output_format cuda,
+                # damit FFmpeg bei Bedarf automatisch zwischen GPU und CPU konvertiert
+                args += ["-hwaccel", "cuda"]
             elif "INTEL" in hw_mode or "AMD" in hw_mode:
                 args += ["-hwaccel", "vaapi", "-hwaccel_output_format", "vaapi", "-hwaccel_device", "/dev/dri/renderD128"]
 
-        start_time = sanitize_time_str(self.start_entry.get_text(), "00:00:00")
+        start_time = sanitize_time_str(self.start_entry.text(), "00:00:00")
         if start_time != "00:00:00":
             args += ["-ss", start_time]
 
         args += ["-i", str(Path(infile).resolve())]
 
-        # --- KORREKTUR FÜR DIE DAUER (Limit) ---
-        # Statt int parsen wir Float, um Dezimalstellen (wie "10.00") sicher zu verarbeiten.
-        raw_dur = self.duration_limit_entry.get_text().strip().replace(',', '.')
+        raw_dur = self.duration_limit_entry.text().strip().replace(',', '.')
         try:
             dur_float = float(raw_dur)
             if dur_float > 0:
                 args += ["-t", f"{dur_float:.2f}"]
         except ValueError:
             pass
-        # --------------------------------------
 
         if vchoice == "Nur Audio ändern":
             args += ["-c:v", "copy"]
@@ -674,25 +717,44 @@ class VideoConverterWindow(Gtk.Window):
             args += _codec_quality_args(codec, qmode, qval_raw, preset, infile)
 
             if is_10bit and "vaapi" not in codec and "nvenc" not in codec:
-                 args += ["-pix_fmt", "yuv420p10le"]
+                args += ["-pix_fmt", "yuv420p10le"]
             elif not is_10bit and "vaapi" not in codec and "nvenc" not in codec:
-                 args += ["-pix_fmt", "yuv420p"]
+                args += ["-pix_fmt", "yuv420p"]
 
-            # --- FILTER & DIMENSIONS LOGIK ---
             res_map = {"720p": "1280", "1080p": "1920", "1440p": "2560", "2160p": "3840"}
             target_w = next((v for k, v in res_map.items() if k in upscale), None)
 
+            # --- Videofilter-Erstellung ---
+            vf_filters = []
             if "nvenc" in codec:
                 if target_w:
-                    args += ["-vf", f"scale_cuda={target_w}:-1"]
+                    vf_filters.append(f"scale={target_w}:-2:flags=lanczos")
+                if unsharp_val:
+                    vf_filters.append(f"unsharp={unsharp_val}")
+                if vf_filters:
+                    args += ["-vf", ",".join(vf_filters)]
             elif "vaapi" in codec:
                 vfmt = "p010le" if is_10bit else "nv12"
-                if target_w:
-                    args += ["-vf", f"scale_vaapi={target_w}:-2,format=vaapi|{vfmt}"]
+                if unsharp_val:
+                    if target_w:
+                        vf_filters.append(f"scale_vaapi={target_w}:-2")
+                    vf_filters.append(f"hwdownload,format={vfmt}")
+                    vf_filters.append(f"unsharp={unsharp_val}")
+                    vf_filters.append(f"format={vfmt},hwupload")
                 else:
-                    args += ["-vf", f"format=vaapi|{vfmt}"]
-            elif target_w:
-                args += ["-vf", f"scale={target_w}:-2:flags=lanczos"]
+                    if target_w:
+                        vf_filters.append(f"scale_vaapi={target_w}:-2,format=vaapi|{vfmt}")
+                    else:
+                        vf_filters.append(f"format=vaapi|{vfmt}")
+                if vf_filters:
+                    args += ["-vf", ",".join(vf_filters)]
+            else:
+                if target_w:
+                    vf_filters.append(f"scale={target_w}:-2:flags=lanczos")
+                if unsharp_val:
+                    vf_filters.append(f"unsharp={unsharp_val}")
+                if vf_filters:
+                    args += ["-vf", ",".join(vf_filters)]
 
         if keep_rotation:
             args += ["-metadata:s:v:0", "rotate=90"]
@@ -723,33 +785,45 @@ class VideoConverterWindow(Gtk.Window):
 
         return args
 
-    def append_log(self, text):
-        GLib.idle_add(self._safe_append_log, text)
-
+    # -------------------- Threadsichere GUI Updates --------------------
     def _safe_append_log(self, text):
-        buf = self.log_view.get_buffer()
-        buf.insert(buf.get_end_iter(), text)
-        self.log_view.scroll_to_mark(buf.create_mark(None, buf.get_end_iter(), False), 0.0, True, 0.0, 1.0)
+        self.log_view.append(text)
 
-    def start_conversion(self, btn):
+    def _safe_set_file_label(self, text):
+        self.file_label.setText(text)
+
+    def _safe_set_file_progress(self, val):
+        self.file_progress.setValue(int(val * 100))
+
+    def _safe_set_total_progress(self, val):
+        self.total_progress.setValue(int(val * 100))
+
+    def _on_conversion_finished(self):
+        self.start_btn.setEnabled(True)
+        self.cancel_btn.setEnabled(False)
+
+    # -------------------- Konvertierungs-Thread --------------------
+    def start_conversion(self):
         if not self.selected_files: return
-        self.start_btn.set_sensitive(False); self.cancel_btn.set_sensitive(True)
+        self.start_btn.setEnabled(False)
+        self.cancel_btn.setEnabled(True)
         self.stop_event.clear()
         threading.Thread(target=self.run_conversion, daemon=True).start()
 
-    def cancel_conversion(self, btn):
+    def cancel_conversion(self):
         self.stop_event.set()
-        if self.current_proc: self.current_proc.terminate()
+        if self.current_proc:
+            self.current_proc.terminate()
 
     def run_conversion(self):
         total = len(self.selected_files)
-        container_choice = self.format_combo.get_active_text()
-        audio_format = self.audio_combo.get_active_text()
+        container_choice = self.format_combo.currentText()
+        audio_format = self.audio_combo.currentText()
 
         for idx, infile in enumerate(list(self.selected_files), 1):
             if self.stop_event.is_set(): break
             in_p = Path(infile).resolve()
-            GLib.idle_add(self.file_label.set_text, f"Fortschritt: {in_p.name}")
+            self.signals.file_label_signal.emit(f"Fortschritt: {in_p.name}")
 
             if container_choice and "WebM" in container_choice:
                 ext = ".webm"
@@ -760,8 +834,8 @@ class VideoConverterWindow(Gtk.Window):
             else:
                 ext = ".mkv"
 
-            target_val = self.target_entry.get_text().strip()
-            if self.save_in_source_chk.get_active():
+            target_val = self.target_entry.text().strip()
+            if self.save_in_source_chk.isChecked():
                 out_dir = in_p.parent
             elif target_val:
                 out_dir = Path(target_val).resolve()
@@ -771,49 +845,50 @@ class VideoConverterWindow(Gtk.Window):
             out_dir.mkdir(parents=True, exist_ok=True)
             out_p = make_unique_path(out_dir / (in_p.stem + ext))
 
-            dur_str = sanitize_time_str(self.duration_limit_entry.get_text(), "0")
+            dur_str = sanitize_time_str(self.duration_limit_entry.text(), "0")
             dur = float(dur_str) if dur_str != "0" else (probe_duration_seconds(in_p) or 1.0)
 
             cmd = ["ffmpeg"] + self.build_ffmpeg_args(str(in_p), str(out_p)) + ["-y", str(out_p)]
 
-            self.append_log(f"\nSTART: {in_p.name}\n")
+            self.signals.log_signal.emit(f"\nSTART: {in_p.name}\n")
             try:
                 self.current_proc = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, universal_newlines=True)
                 for line in self.current_proc.stdout:
-                    self.append_log(line)
+                    self.signals.log_signal.emit(line.strip())
                     m = time_re.search(line)
                     if m:
                         pct = min(1.0, (int(m.group(1))*3600 + int(m.group(2))*60 + float(m.group(3))) / dur)
-                        GLib.idle_add(self.file_progress.set_fraction, pct)
-                        GLib.idle_add(self.total_progress.set_fraction, (idx-1+pct)/total)
+                        self.signals.file_progress_signal.emit(pct)
+                        self.signals.total_progress_signal.emit((idx-1+pct)/total)
 
                 return_code = self.current_proc.wait()
 
                 if return_code != 0 and not self.stop_event.is_set():
-                    vchoice = self.video_combo.get_active_text()
-                    gpu_choice = self.gpu_combo.get_active_text()
-
-                    if ("VP9" in vchoice or "AV1" in vchoice) and "Software" not in gpu_choice:
-                        codec_name = "VP9" if "VP9" in vchoice else "AV1"
-                        self.append_log(
-                            "\n" + "="*60 + "\n"
-                            f"⚠️ HINWEIS / ENCODER-FEHLER ({codec_name}):\n"
-                            f"Das Encodieren ist fehlgeschlagen. Der Codec {codec_name} wird auf deiner GPU\n"
-                            "eventuell nicht hardwareseitig zum Enkodieren unterstützt.\n\n"
-                            "💡 LÖSUNG: Bitte stelle die 'GPU / CPU Auswahl' auf der ersten Seite auf\n"
-                            "'Software (CPU)' um und starte die Konvertierung erneut.\n"
-                            + "="*60 + "\n\n"
-                        )
-
+                    self.signals.log_signal.emit("FEHLER: Konvertierung fehlgeschlagen.\n")
             except Exception as e:
-                self.append_log(f"FEHLER: {e}\n")
+                self.signals.log_signal.emit(f"FEHLER: {e}\n")
 
-        self.append_log("\nFERTIG.\n")
-        GLib.idle_add(self.file_label.set_text, "Konvertierung abgeschlossen")
-        GLib.idle_add(self.start_btn.set_sensitive, True)
-        GLib.idle_add(self.cancel_btn.set_sensitive, False)
+        self.signals.log_signal.emit("\nFERTIG.\n")
+        self.signals.file_label_signal.emit("Konvertierung abgeschlossen")
+        self.signals.finished_signal.emit()
+
 
 if __name__ == "__main__":
-    win = VideoConverterWindow()
-    win.connect("destroy", Gtk.main_quit)
-    Gtk.main()
+    import os
+    from PyQt6.QtGui import QIcon
+
+    # Wichtig für die Taskleiste (Wayland/X11 Desktop-Matching):
+    # Setzt die Anwendungsklasse passend zur StartupWMClass der .desktop-Datei
+    os.environ["QT_QPA_PLATFORM_APP_ID"] = "guideos-videokonverter"
+
+    app = QApplication(sys.argv)
+    app.setDesktopFileName("guideos-videokonverter")
+
+    # Lädt das Fenster- und Taskleisten-Icon direkt aus pixmaps
+    icon_path = "/usr/share/pixmaps/guideos-videokonverter.png"
+    if os.path.exists(icon_path):
+        app.setWindowIcon(QIcon(icon_path))
+
+    window = VideoConverterWindow()
+    window.show()
+    sys.exit(app.exec())

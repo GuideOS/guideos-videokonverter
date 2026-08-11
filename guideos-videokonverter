@@ -1,3 +1,2 @@
 #!/bin/bash
-cd /usr/lib/guideos-videokonverter
-exec python3 guideos-videokonverter-start.py
+exec python3 /usr/lib/guideos-videokonverter/guideos-videokonverter-start.py "$@"
