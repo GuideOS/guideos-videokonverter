@@ -11,7 +11,8 @@ Zur Maximierung der Verarbeitungsgeschwindigkeit wird vorhandene Grafikhardware 
 
 ### Key Features auf einen Blick
 
-✅ **Hardware-Beschleunigung**: NVIDIA (NVENC), AMD (VAAPI/AMF), Intel (QuickSync/VAAPI) sowie CPU (Software-Fallback)\
+✅ **Hardware-Beschleunigung**: NVIDIA (NVENC), AMD (VAAPI/AMF), Intel (QuickSync/VAAPI)   
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;sowie CPU (Software-Fallback)\
 ✅ **Container & Codecs**: MP4, MKV & WebM | Video: H.264, H.265 (HEVC), VP9 & AV1\
 ✅ **Audio-Anpassungen**: Codec-Wechsel (AAC, Opus, FLAC, PCM), Audio-Copy (1:1 ohne Qualitätsverlust,   
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;ideal für 5.1 Surround)   
