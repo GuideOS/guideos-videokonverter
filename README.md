@@ -16,7 +16,8 @@ Zur Maximierung der Verarbeitungsgeschwindigkeit wird vorhandene Grafikhardware 
 ✅ **Audio-Anpassungen**: Codec-Wechsel (AAC, Opus, FLAC, PCM), Audio-Copy (1:1 ohne Qualitätsverlust, ideal für 5.1 Surround)   
 ✅ **Lautstärke-Normalisierung (LUFS nach EBU R128)\
 ✅ **Qualitätssteuerung**: CRF/CQ (Qualitätsstufe), feste Bitrate oder direkte Ziel-Dateigröße (MB)\
-✅ **Skalierung & Nachschärfung**: High-Quality Upscaling (720p bis 4K via Lanczos) inkl. konfigurierbarem Unsharp-Filter\
+✅ **Skalierung & Nachschärfung**: High-Quality Upscaling (720p bis 4K via Lanczos) inkl.   
+konfigurierbarem Unsharp-Filter\
 ✅ **Farbtiefe & Hochformat**: Unterstützung für 8-Bit & 10-Bit sowie Erhalt von Smartphone-Rotationsflags (9:16)\
 ✅ **Schnittfunktion**: Visuelle Festlegung von Startzeit und Dauer über ein integriertes Vorschau-Modul\
 ✅ **Batch-Verarbeitung**: Stapelverarbeitung mehrerer Dateien per Drag & Drop mit Fortschrittsanzeige & Abbruchfunktion
