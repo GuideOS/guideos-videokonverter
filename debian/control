@@ -1,0 +1,26 @@
+Source: guideos-videokonverter
+Section: video
+Priority: optional
+Maintainer: Nightworker <nightworker@guideos.de>
+Build-Depends: debhelper-compat (= 13)
+Standards-Version: 4.7.0
+Homepage: https://github.com/GuideOS/guideos-videokonverter
+
+Package: guideos-videokonverter
+Architecture: all
+Depends: python3,
+         python3-pyqt6,
+         python3-pyqt6.qtmultimedia,
+         ffmpeg,
+         pciutils,
+         va-driver-all,
+         mesa-va-drivers,
+         ${misc:Depends}
+Recommends: intel-media-va-driver,
+            nvidia-driver
+Description: Grafische ffmpeg-Oberfläche mit Hardwarebeschleunigung (PyQt6)
+ Ein grafisches Frontend auf PyQt6-Basis für ffmpeg zur effizienten 
+ Videokonvertierung. Das Tool unterstützt GPU-basierte 
+ Hardwarebeschleunigung (z. B. via NVENC für NVIDIA oder VA-API 
+ für Intel/AMD), um die Systemlast zu minimieren und die 
+ Verarbeitungsgeschwindigkeit zu optimieren.
