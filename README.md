@@ -14,9 +14,9 @@ Zur Maximierung der Verarbeitungsgeschwindigkeit wird vorhandene Grafikhardware 
 ✅ **Hardware-Beschleunigung**: NVIDIA (NVENC), AMD (VAAPI/AMF), Intel (QuickSync/VAAPI) sowie CPU (Software-Fallback)\
 ✅ **Container & Codecs**: MP4, MKV & WebM | Video: H.264, H.265 (HEVC), VP9 & AV1\
 ✅ **Audio-Anpassungen**: Codec-Wechsel (AAC, Opus, FLAC, PCM), Audio-Copy (1:1 ohne Qualitätsverlust, ideal für 5.1 Surround)   
-✅ **Lautstärke-Normalisierung (LUFS nach EBU R128)\
+✅ **Lautstärke-Normalisierung** (LUFS nach EBU R128)\
 ✅ **Qualitätssteuerung**: CRF/CQ (Qualitätsstufe), feste Bitrate oder direkte Ziel-Dateigröße (MB)\
-✅ **Skalierung & Nachschärfung**: High-Quality Upscaling (720p bis 4K via Lanczos) inkl.   
+✅ **Skalierung & Nachschärfung**: High-Quality Upscaling (720p bis 4K via Lanczos) inkl.   \
    konfigurierbarem Unsharp-Filter\
 ✅ **Farbtiefe & Hochformat**: Unterstützung für 8-Bit & 10-Bit sowie Erhalt von Smartphone-Rotationsflags (9:16)\
 ✅ **Schnittfunktion**: Visuelle Festlegung von Startzeit und Dauer über ein integriertes Vorschau-Modul\
