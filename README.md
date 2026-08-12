@@ -1,5 +1,7 @@
 ## Guideos-Videokonverter
-ist ein auf Linux ausgerichtetes Video-Verarbeitungstool, das dem Benutzer das Konvertieren von Video-Clips in andere Formate erleichtert. Es dient ferner der kompakten Speicherung großer Clips in platzsparenden Formaten und unterstützt jeweils den umgekehrten Prozess. Zur Beschleunigung der Arbeitsabläufe wird, sofern verfügbar, die vorhandene Hardware so weit wie möglich genutzt. Unterstützte Codecs sind H.264, H.265 und AV1. Die Konvertierung in AV1 bildet einen Sonderfall, da ältere Hardware diesen Codec möglicherweise nicht unterstützt. Falls keine Hardware-Unterstützung vorhanden ist, wird eine entsprechende Fehlermeldung ausgegeben; in diesem Fall ist jedoch eine Software-basierte Konvertierung weiterhin möglich.
+Der **GuideOS-Videokonverter** ist ein auf Linux ausgerichter Video-Konverter mit moderner PyQt6-Oberfläche.   
+Er erleichtert das schnelle Umwandeln, Schneiden und Komprimieren von Videoclips in platzsparende Formate.   
+Zur Maximierung der Verarbeitungsgeschwindigkeit wird vorhandene Grafikhardware (GPU) voll ausgenutzt.
 
 <div style="display:flex; gap:10px;">
   <img src="screenshot/hochkant-preview.webp" width="270" height="270">
@@ -7,17 +9,18 @@ ist ein auf Linux ausgerichtetes Video-Verarbeitungstool, das dem Benutzer das K
   <img src="screenshot/querformat-preview.webp" width="270" height="183">
 </div>
 
-### Für eine einwandfreie Funktion muss ein aktueller Treiber und python3 installiert sein.
+### Key Features auf einen Blick
 
-✅ Unterstützung: NVIDIA (NVENC); AMD (AMF/VAAPI); Intel (VAAPI); CPU (Software)\
-✅ Der Audio-Codec im Videofile kann geändert werden: PCM 16bit, AAC, Flac\
-✅ Der Audio-Codec im Videofile kann kopiert werden, praktisch z.B. 5.1 Audio\
-✅ Konvertierung des Video-Files in h.264, h.265 oder AV1\
-✅ Qualitätssteuerung: Auswahl nach CRF (Qualitätsstufe), fester Bitrate oder Ziel-Dateigröße (MB)\
-✅ Skalierung: Hochwertiges Upscaling (720p bis 4K) via FFmpeg (Lanczos-Filter)\
-✅ Batch-Verarbeitung: Unterstützung für Drag & Drop und gleichzeitige Auswahl mehrerer Dateien\
-✅ Schnittfunktion: Visuelle Festlegung von Startzeit und Dauer über ein Vorschau-Modul\
-✅ Prozesskontrolle: Echtzeit-Log-Fenster, Fortschrittsbalken und Abbruchfunktion\
+✅ **Hardware-Beschleunigung**: NVIDIA (NVENC), AMD (VAAPI/AMF), Intel (QuickSync/VAAPI) sowie CPU (Software-Fallback)\
+✅ **Container & Codecs**: MP4, MKV & WebM | Video: H.264, H.265 (HEVC), VP9 & AV1\
+✅ **Audio-Anpassungen**: Codec-Wechsel (AAC, Opus, FLAC, PCM), Audio-Copy (1:1 ohne Qualitätsverlust, ideal für 5.1 Surround)   
+✅ **Lautstärke-Normalisierung (LUFS nach EBU R128)\
+✅ **Qualitätssteuerung**: CRF/CQ (Qualitätsstufe), feste Bitrate oder direkte Ziel-Dateigröße (MB)\
+✅ **Skalierung & Nachschärfung**: High-Quality Upscaling (720p bis 4K via Lanczos) inkl. konfigurierbarem Unsharp-Filter\
+✅ **Farbtiefe & Hochformat**: Unterstützung für 8-Bit & 10-Bit sowie Erhalt von Smartphone-Rotationsflags (9:16)\
+✅ **Schnittfunktion**: Visuelle Festlegung von Startzeit und Dauer über ein integriertes Vorschau-Modul\
+✅ **Batch-Verarbeitung**: Stapelverarbeitung mehrerer Dateien per Drag & Drop mit Fortschrittsanzeige & Abbruchfunktion
+
 ***
 ### Funktionsübersicht
 
@@ -26,7 +29,6 @@ ist ein auf Linux ausgerichtetes Video-Verarbeitungstool, das dem Benutzer das K
 * **AMD**: Hardwarebeschleunigung über VAAPI / AMF
 * **Intel**: Hardwarebeschleunigung über VAAPI / QuickSync
 * **CPU**: Softwarebasierte Kodierung (Fallback bei inkompatiblen Clipsegmenten)
-* 
 
 #### 📽 Videoformate & Codecs
 * **Container**: MP4 (`.mp4`), Matroska (`.mkv`), WebM (`.webm`)
