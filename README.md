@@ -21,7 +21,8 @@ Zur Maximierung der Verarbeitungsgeschwindigkeit wird vorhandene Grafikhardware 
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;konfigurierbarem Unsharp-Filter\
 ✅ **Farbtiefe & Hochformat**: Unterstützung für 8-Bit & 10-Bit sowie Erhalt von Smartphone-Rotationsflags (9:16)\
 ✅ **Schnittfunktion**: Visuelle Festlegung von Startzeit und Dauer über ein integriertes Vorschau-Modul\
-✅ **Batch-Verarbeitung**: Stapelverarbeitung mehrerer Dateien per Drag & Drop mit Fortschrittsanzeige & Abbruchfunktion
+✅ **Batch-Verarbeitung**: Stapelverarbeitung mehrerer Dateien per Drag & Drop mit Fortschrittsanzeige   
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;& Abbruchfunktion
 
 ***
 ### Funktionsübersicht
