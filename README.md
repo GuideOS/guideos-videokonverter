@@ -4,7 +4,6 @@ ist ein auf Linux ausgerichtetes Video-Verarbeitungstool, das dem Benutzer das K
 <div style="display:flex; gap:10px;">
   <img src="screenshot/hochkant-preview.webp" width="270" height="183">
   <img src="screenshot/querformat-preview.webp" width="270" height="183">
-  <img src="screenshot/schnittbereich-preview.webp" width="270" height="183">
 </div>
 
 ### Für eine einwandfreie Funktion muss ein aktueller Treiber und python3 installiert sein.
@@ -64,19 +63,23 @@ ist ein auf Linux ausgerichtetes Video-Verarbeitungstool, das dem Benutzer das K
 ---
 ## 🔧 Installation
 
-### 1. Die fertige guideos-videokonverter.deb hier herunterladen
+### 1. Download des `.deb` Packages, von der **[Releases](https://github.com/GuideOS/guideos-videokonverter/releases)** Section in diesem Repository
 ### 2. Als DEB-Paket bauen und installieren:
+   \
+Dazu erstelle ein beliebiges Verzeichnis, öffne darin das Terminal und führe folgende Schritte aus: 
 
-Erstelle ein beliebiges Verzeichnis, öffne darin das Terminal und führe folgende Schritte aus: 
 
+### Repository klonen
 ```bash
-# Repository klonen
 git clone [https://github.com/GuideOS/guideos-videokonverter.git](https://github.com/GuideOS/guideos-videokonverter.git)
 cd guideos-videokonverter
-
-# DEB-Paket bauen
+```
+### DEB-Paket bauen
+```bash
 dpkg-buildpackage -us -uc
-
-# Paket installieren
+```
+### Paket installieren
+```bash
 sudo dpkg -i ../guideos-videokonverter_*.deb
 sudo apt-get install -f  # Fehlende Abhängigkeiten automatisch auflösen
+```
