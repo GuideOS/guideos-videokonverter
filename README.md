@@ -72,16 +72,18 @@ Zur Maximierung der Verarbeitungsgeschwindigkeit wird vorhandene Grafikhardware 
 Dazu erstelle ein beliebiges Verzeichnis, öffne darin das Terminal und führe folgende Schritte aus: 
 
 
-### Repository klonen
+#### Repository klonen
 ```bash
 git clone [https://github.com/GuideOS/guideos-videokonverter.git](https://github.com/GuideOS/guideos-videokonverter.git)
 cd guideos-videokonverter
 ```
-### DEB-Paket bauen
+   
+#### DEB-Paket bauen
 ```bash
 dpkg-buildpackage -us -uc
 ```
-### Paket installieren
+    
+#### Paket installieren
 ```bash
 sudo dpkg -i ../guideos-videokonverter_*.deb
 sudo apt-get install -f  # Fehlende Abhängigkeiten automatisch auflösen
