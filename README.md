@@ -19,7 +19,8 @@ Zur Maximierung der Verarbeitungsgeschwindigkeit wird vorhandene Grafikhardware 
 ✅ **Qualitätssteuerung**: CRF/CQ (Qualitätsstufe), feste Bitrate oder direkte Ziel-Dateigröße (MB)\
 ✅ **Skalierung & Nachschärfung**: High-Quality Upscaling (720p bis 4K via Lanczos) inkl.   \
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;konfigurierbarem Unsharp-Filter\
-✅ **Farbtiefe & Hochformat**: Unterstützung für 8-Bit & 10-Bit sowie Erhalt von Smartphone-Rotationsflags (9:16)\
+✅ **Farbtiefe & Hochformat**: Unterstützung für 8-Bit & 10-Bit sowie Erhalt von   
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Smartphone-Rotationsflags (9:16)\
 ✅ **Schnittfunktion**: Visuelle Festlegung von Startzeit und Dauer über ein integriertes Vorschau-Modul\
 ✅ **Batch-Verarbeitung**: Stapelverarbeitung mehrerer Dateien per Drag & Drop mit Fortschrittsanzeige   
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;& Abbruchfunktion
