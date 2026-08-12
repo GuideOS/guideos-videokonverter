@@ -20,84 +20,63 @@ ist ein auf Linux ausgerichtetes Video-Verarbeitungstool, das dem Benutzer das K
 ✅ Prozesskontrolle: Echtzeit-Log-Fenster, Fortschrittsbalken und Abbruchfunktion\
 ***
 ### Funktionsübersicht
-Die Software bietet umfangreiche Funktionen zur Video- und Audiokonvertierung unter Nutzung moderner Hard- und Software-Enkoder.
 
-### Enkoder-Unterstützung
-Für die Videokodierung stehen folgende Encoder zur Verfügung:\
-    • NVIDIA: Hardwarebeschleunigung über NVENC\
-    • AMD: Hardwarebeschleunigung über AMF bzw. VAAPI\
-    • Intel: Hardwarebeschleunigung über VAAPI\
-    • CPU: Softwarebasierte Kodierung ohne Hardwarebeschleunigung
+#### 🚀 Enkoder-Unterstützung
+* **NVIDIA**: Hardwarebeschleunigung über NVENC
+* **AMD**: Hardwarebeschleunigung über VAAPI / AMF
+* **Intel**: Hardwarebeschleunigung über VAAPI / QuickSync
+* **CPU**: Softwarebasierte Kodierung (Fallback bei inkompatiblen Clipsegmenten)
+* 
 
-Die Auswahl des Encoders erfolgt abhängig von der verfügbaren Hardware des Systems.
+#### 📽 Videoformate & Codecs
+* **Container**: MP4 (`.mp4`), Matroska (`.mkv`), WebM (`.webm`)
+* **Video-Codecs**: H.264 (AVC), H.265 (HEVC), VP9, AV1 oder Modus *"Nur Audio"*
+* **Farbtiefe**: 8-Bit (Standard) & 10-Bit (HDR/High Quality)
+* **Smartphone-Rotation**: Automatische Beibehaltung von 9:16 Flags gegen ungewollte Verzerrungen
 
-### Videoformate
-Das Quellvideo kann in eines der folgenden Zielformate konvertiert werden:\
-    • H.264 (AVC)\
-    • H.265 (HEVC)\
-    • AV1  
+#### 🎵 Audioeinstellungen
+* **Stream Copy (Audio-Copy)** 🆕: Übernahme der Audiospur ohne Neukodierung (spart Zeit und erhält 5.1/7.1 Sound 1:1)
+* **Audio-Codecs**: AAC, Opus (Standard für WebM), FLAC (Lossless) und PCM (16-Bit)
+* **Lautstärke-Normalisierung** 🆕: Integrierte EBU R128 Loudness-Normalisierung (-30 bis -5 LUFS, ideal für Web & TV)
 
-### Audioeinstellungen
-Der im Videofile enthaltene Audio-Codec kann unabhängig vom Videoformat geändert werden.\
-Zusätzlich lässt sich auch nur der Audio-Codec ändern, wobei das Videoformat  nicht verändert wird.\
-Audio-Copy (Stream Copy) 🆕: Die Audiospur kann ohne Neukodierung 1:1 in die Zieldatei kopiert werden.\
-Dies spart Zeit und erhält die originale Qualität (z.B. bei 5.1 Surround-Sound)
+#### 🎚 Qualität & Bitrate
+* **CQ / CRF**: Qualitätsbasierte Kodierung mit konfigurierbaren Werten
+* **Bitrate**: Manuelle Festlegung der Zielbitrate in kbit/s
+* **Zieldateigröße**: Automatische Bitratenberechnung basierend auf einer gewünschten Ziel-Megabyte-Zahl
 
-Unterstützt werden:\
-    • PCM (16 Bit)\
-    • AAC\
-    • FLAC (16 Bit)  
+#### 📐 Auflösung, Skalierung & Schärfe
+* **Auflösungen**: Original, 720p (HD), 1080p (Full HD), 1440p (2K), 2160p (4K)
+* **Skalierung**: FFmpeg Lanczos-Filter für maximale Schärfe beim Up-/Downscaling
+* **Unsharp-Filter** 🆕: Integrierter Nachschärfefilter (*Leicht*, *Mittel*, *Stark*) zur Optimierung skalierten Bildmaterials
 
-### Qualität und Bitrate
-Die Software ermöglicht:\
-    • die Auswahl einer vordefinierten Qualitätsstufe\
-    • die manuelle Einstellung der Zielbitrate\
-    • die gewünschte Ausgabegröße  
+---
 
-### Auflösung und Skalierung
-Es stehen folgende vordefinierte Zielauflösungen zur Verfügung:
-    • 1280 × 720   (720p)\
-    • 1920 × 1080 (1080p)\
-    • 2560 × 1440 (1440p)\
-    • 3840 × 2160 (2160p)
+### 🔍 Modul: Video-Vorschau & Schnittbereich (video_preview.py)
+<div style="display:flex; gap:10px;">
+  <img src="screenshot/schnittbereich-preview.webp" width="270" height="183">
+</div>
 
-Die Skalierung erfolgt mittels FFmpeg unter Verwendung des Lanczos-Filters,  
-um eine hochwertige Bildskalierung zu gewährleisten.
-### Prozesssteuerung
-Während der Konvertierung wird der aktuelle Fortschritt in einem separaten\
-Fortschrittsfenster angezeigt, der Konvertierungsvorgang kann jederzeit durch\
-den Benutzer abgebrochen werden.
+**Kernfunktionen:**
+* **Visuelles Scrubbing**: Flüssiges Spulen und Ansteuern genauer Videopositionen per PyQt6-Slider.
+* **In/Out-Point Definition**: Start- und Endpunkte können direkt in der Vorschau gesetzt werden. Die resultierende Dauer wird automatisch berechnet und ins Hauptfenster übernommen.
+* **Ressourceneffizienz**: Multithreaded Frame-Extraktion verhindert ein Einfrieren der Benutzeroberfläche (GUI-Lag) beim schnellen Suchen.
 
-### 🔍 Modul: Video-Vorschau & Frame-Extraktion (video_preview.py)
-Die Datei video_preview.py dient als interaktive grafische Schnittstelle zur exakten Bestimmung von Schnittmarken. Anstatt Zeitstempel manuell schätzen zu müssen, ermöglicht dieses Modul eine visuelle Kontrolle in Echtzeit.
-
-<img width="1052" height="844" alt="Vorschau" src="https://github.com/user-attachments/assets/56ed0cad-d7dd-42b4-887e-2aeea4023968" />
-
-Kernfunktionen:
-Frame-genaues Scrubbing: Über einen GTK-Schieberegler kann jede Position des Videos angesteuert werden. Für diese Funktion sollte sich nur ein Clip im Auswahlfenster befinden. 
-
-Dynamic MJPEG Stream: Zur Ressourcenschonung und Vermeidung von Schreibzugriffen in geschützten Verzeichnissen (wie /usr/lib) nutzt das Modul eine FFmpeg-Pipe. Bilder werden direkt im Arbeitsspeicher als JPEG-Stream dekodiert und via GdkPixbufLoader angezeigt.
-
-In/Out-Point Definition: Benutzer können Start- und Endpunkte visuell festlegen. Diese Werte werden beim Schließen des Dialogs automatisch an das Hauptprogramm übergeben.
-
-Ressourceneffizienz: Das Modul nutzt Multithreading für die Bildextraktion, um ein Einfrieren der Benutzeroberfläche (GUI-Lag) während des schnellen Spulens zu verhindern.
-
+---
 ## 🔧 Installation
 
-### Build from DEB Package:
+### 1. Die fertige guideos-videokonverter.deb hier herunterladen
+### 2. Als DEB-Paket bauen und installieren:
+
 Erstelle ein beliebiges Verzeichnis, öffne darin das Terminal und führe folgende Schritte aus: 
+
 ```bash
-# Clone repository
-git clone https://github.com/GuideOS/guideos-videokonverter.git
+# Repository klonen
+git clone [https://github.com/GuideOS/guideos-videokonverter.git](https://github.com/GuideOS/guideos-videokonverter.git)
 cd guideos-videokonverter
-```
-```bash
-# Create DEB package
+
+# DEB-Paket bauen
 dpkg-buildpackage -us -uc
-```
-```bash
-# Install (as root)
-sudo dpkg -i ../guideos-videokonverter_1.1.1_all.deb
-sudo apt-get install -f  # Resolve dependencies if needed
-```
-Die erstellte .deb Datei kann aber auch durch ein Doppelklick gestartet werden.
+
+# Paket installieren
+sudo dpkg -i ../guideos-videokonverter_*.deb
+sudo apt-get install -f  # Fehlende Abhängigkeiten automatisch auflösen
