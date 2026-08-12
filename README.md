@@ -2,7 +2,8 @@
 ist ein auf Linux ausgerichtetes Video-Verarbeitungstool, das dem Benutzer das Konvertieren von Video-Clips in andere Formate erleichtert. Es dient ferner der kompakten Speicherung großer Clips in platzsparenden Formaten und unterstützt jeweils den umgekehrten Prozess. Zur Beschleunigung der Arbeitsabläufe wird, sofern verfügbar, die vorhandene Hardware so weit wie möglich genutzt. Unterstützte Codecs sind H.264, H.265 und AV1. Die Konvertierung in AV1 bildet einen Sonderfall, da ältere Hardware diesen Codec möglicherweise nicht unterstützt. Falls keine Hardware-Unterstützung vorhanden ist, wird eine entsprechende Fehlermeldung ausgegeben; in diesem Fall ist jedoch eine Software-basierte Konvertierung weiterhin möglich.
 
 <div style="display:flex; gap:10px;">
-  <img src="screenshot/hochkant-preview.webp" width="270" height="183">
+  <img src="screenshot/hochkant-preview.webp" width="270" height="270">
+  <img src="screenshot/layout-wechsel.webp" width="270" height="100">
   <img src="screenshot/querformat-preview.webp" width="270" height="183">
 </div>
 
@@ -52,7 +53,7 @@ ist ein auf Linux ausgerichtetes Video-Verarbeitungstool, das dem Benutzer das K
 
 ### 🔍 Modul: Video-Vorschau & Schnittbereich (video_preview.py)
 <div style="display:flex; gap:10px;">
-  <img src="screenshot/schnittbereich-preview.webp" width="270" height="183">
+  <img src="screenshot/schnittbereich-preview.webp" width="470" height="470">
 </div>
 
 **Kernfunktionen:**
