@@ -18,7 +18,7 @@ from PyQt6.QtWidgets import (
     QApplication, QMainWindow, QWidget, QVBoxLayout, QHBoxLayout,
     QGridLayout, QLabel, QLineEdit, QComboBox, QPushButton, QCheckBox,
     QSpinBox, QProgressBar, QTextEdit, QListWidget, QAbstractItemView,
-    QFileDialog, QFrame, QToolBar, QSizePolicy, QMessageBox
+    QFileDialog, QFrame, QToolBar, QSizePolicy, QMessageBox, QStackedWidget
 )
 from PyQt6.QtCore import Qt, QThread, pyqtSignal, QObject
 from PyQt6.QtGui import QDragEnterEvent, QDropEvent, QAction, QIcon
@@ -412,16 +412,25 @@ class VideoConverterWindow(QMainWindow):
         self.quality_combo.currentIndexChanged.connect(self.on_quality_mode_changed)
         grid.addWidget(self.quality_combo, 7, 1)
 
-        self.quality_label = QLabel("CRF Wert (0-51):")
-        self.quality_label.setToolTip("Der CRF Wert bestimmt die Qualität.\nEin kleinerer Wert bedeutet höhere Qualität, aber auch eine größere Ausgabedatei.")
-        grid.addWidget(self.quality_label, 8, 0)
-        self.quality_entry = QLineEdit("23")
-        grid.addWidget(self.quality_entry, 8, 1)
+        # Umschaltung dynamisches Label / Bitratenmodus (VBR / CBR)
+        self.quality_mode_label = QLabel("Bitratenmodus:")
+        grid.addWidget(self.quality_mode_label, 8, 0)
 
-        self.cbr_chk = QCheckBox("Feste Bitrate (CBR) erzwingen")
-        self.cbr_chk.setToolTip("Erzwingt eine konstante Bitrate (CBR) statt einer variablen (VBR).\nSinnvoll für Streaming oder strikte Speichervorgaben.")
-        self.cbr_chk.setEnabled(False)
-        grid.addWidget(self.cbr_chk, 9, 1)
+        # Dynamic Stack für Dropdown (VBR/CBR) oder leeres Widget
+        self.mode_stack = QStackedWidget()
+        self.empty_widget = QWidget()
+        self.bitrate_mode_combo = QComboBox()
+        self.bitrate_mode_combo.addItems(["VBR (Variable Bitrate)", "CBR (Konstante Bitrate)"])
+
+        self.mode_stack.addWidget(self.empty_widget)
+        self.mode_stack.addWidget(self.bitrate_mode_combo)
+        grid.addWidget(self.mode_stack, 8, 1)
+
+        self.quality_label = QLabel("CRF (0-51):")
+        self.quality_label.setToolTip("Der CRF Wert bestimmt die Qualität.\nEin kleinerer Wert bedeutet höhere Qualität, aber auch eine größere Ausgabedatei.")
+        grid.addWidget(self.quality_label, 9, 0)
+        self.quality_entry = QLineEdit("23")
+        grid.addWidget(self.quality_entry, 9, 1)
 
         preset_label = QLabel("Analyse-Stufe:")
         preset_label.setToolTip("Wählt das Codierungs-Preset (Encoder-Aufwand).\nHöhere Stufen (slow/slower) analysieren das Video gründlicher, das optimiert das Video-File, erhöht jedoch die Renderzeit")
@@ -432,6 +441,9 @@ class VideoConverterWindow(QMainWindow):
         grid.addWidget(self.preset_combo, 10, 1)
 
         left_vbox.addLayout(grid)
+
+        # Initiale Einstellung des Qualitätsmodus
+        self.on_quality_mode_changed(0)
 
         self.hw_warning_label = QLabel("")
         self.hw_warning_label.setWordWrap(True)
@@ -582,8 +594,6 @@ class VideoConverterWindow(QMainWindow):
         self.video_combo.setCurrentIndex(0)
         self.bit_combo.setCurrentIndex(0)
         self.quality_combo.setCurrentIndex(0)
-        self.cbr_chk.setChecked(False)
-        self.cbr_chk.setEnabled(False)
         self.preset_combo.setCurrentIndex(4)
         self.volume_spin.setValue(-16)
         self.quality_entry.setText("23")
@@ -595,20 +605,23 @@ class VideoConverterWindow(QMainWindow):
     def on_quality_mode_changed(self, index):
         m = self.quality_combo.currentText()
         if not m: return
-        if "CQ" in m:
-            self.quality_label.setText("CRF (0-51):")
-            self.quality_entry.setText("23")
-            self.cbr_chk.setEnabled(False)
-            self.cbr_chk.setChecked(False)
-        elif "Bitrate" in m:
+
+        if "Bitrate" in m:
+            self.quality_mode_label.show()
+            self.quality_mode_label.setText("Bitratenmodus:")
+            self.mode_stack.setCurrentIndex(1)
             self.quality_label.setText("kbit/s:")
             self.quality_entry.setText("5000")
-            self.cbr_chk.setEnabled(True)
+        elif "CQ" in m:
+            self.quality_mode_label.hide()
+            self.mode_stack.setCurrentIndex(0)
+            self.quality_label.setText("CRF (0-51):")
+            self.quality_entry.setText("23")
         else:
+            self.quality_mode_label.hide()
+            self.mode_stack.setCurrentIndex(0)
             self.quality_label.setText("MB:")
             self.quality_entry.setText("700")
-            self.cbr_chk.setEnabled(False)
-            self.cbr_chk.setChecked(False)
 
     def on_select_files(self):
         files, _ = QFileDialog.getOpenFileNames(self, "Videos wählen", "", "Video Files (*.mp4 *.mkv *.avi *.mov *.webm *.flv *.wmv)")
@@ -657,7 +670,9 @@ class VideoConverterWindow(QMainWindow):
 
         vchoice, achoice = self.video_combo.currentText(), self.audio_combo.currentText()
         qmode, qval_raw = self.quality_combo.currentText(), self.quality_entry.text()
-        force_cbr = self.cbr_chk.isChecked()
+
+        force_cbr = "CBR" in self.bitrate_mode_combo.currentText() if "Bitrate" in qmode else False
+
         upscale = self.dimension_combo.currentText()
         sharp_mode = self.sharpness_combo.currentText()
         preset = self.preset_combo.currentText()
