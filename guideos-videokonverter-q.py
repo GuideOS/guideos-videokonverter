@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # =======================================================================
 # Titel:     Linux Video Enkoder (PyQt6 Tabbed GUI with Layout Switcher)
-# Version:   1.1.9 (Restored Multi-Stage Sharpening Dropdown)
+# Version:   1.2.1 (Integration of External Help Files)
 # Autor:     Nightworker / Adaptive UI: Gemini
 # =======================================================================
 import sys
@@ -17,7 +17,7 @@ from PyQt6.QtWidgets import (
     QApplication, QMainWindow, QWidget, QVBoxLayout, QHBoxLayout,
     QGridLayout, QLabel, QLineEdit, QComboBox, QPushButton, QCheckBox,
     QSpinBox, QProgressBar, QTextEdit, QListWidget, QAbstractItemView,
-    QFileDialog, QFrame, QTabWidget
+    QFileDialog, QFrame, QTabWidget, QMessageBox
 )
 from PyQt6.QtCore import Qt, pyqtSignal, QObject
 from PyQt6.QtGui import QDragEnterEvent, QDropEvent
@@ -112,7 +112,7 @@ def _select_encoder(fmt, mode):
         if is_encoder_available(enc): return enc
     return {"H.264":"libx264", "H.265":"libx265", "VP9":"libvpx-vp9", "AV1":"libsvtav1"}.get(fmt, "libx264")
 
-def _codec_quality_args(codec, qmode, qval_raw, preset, infile):
+def _codec_quality_args(codec, qmode, qval_raw, preset, infile, bitrate_type="VBR"):
     args = ["-c:v", codec]
 
     if "nvenc" in codec:
@@ -124,7 +124,7 @@ def _codec_quality_args(codec, qmode, qval_raw, preset, infile):
             "faster": "8", "fast": "7", "medium": "6",
             "slow": "4", "slower": "3", "veryslow": "2"
         }
-        p = svt_map.get(preset, "6")
+        p = svt_map.get(preset, "7")
     else:
         p = preset
 
@@ -137,6 +137,16 @@ def _codec_quality_args(codec, qmode, qval_raw, preset, infile):
     elif "Bitrate" in qmode:
         kbps = str(sanitize_int(qval_raw, default=5000))
         args += ["-b:v", f"{kbps}k"]
+
+        # Bitraten-Typ Unterscheidung (CBR vs VBR)
+        if "CBR" in bitrate_type:
+            args += ["-minrate", f"{kbps}k", "-maxrate", f"{kbps}k", "-bufsize", f"{int(kbps)*2}k"]
+            if "nvenc" in codec: args += ["-rc", "cbr"]
+            elif "vaapi" in codec: args += ["-rc_mode", "CBR"]
+        else:
+            if "nvenc" in codec: args += ["-rc", "vbr"]
+            elif "vaapi" in codec: args += ["-rc_mode", "VBR"]
+
         if "libvpx-vp9" not in codec: args += ["-preset", p]
     else:
         target_mb = sanitize_int(qval_raw, default=700)
@@ -186,7 +196,7 @@ class VideoConverterWindow(QMainWindow):
     def __init__(self):
         super().__init__()
         self.setWindowTitle("GuideOS Videokonverter")
-        self.resize(800, 380)
+        self.resize(800, 410)
 
         self.selected_files = []
         self.current_proc = None
@@ -212,7 +222,6 @@ class VideoConverterWindow(QMainWindow):
         """)
 
     def change_layout(self):
-        """Öffnet den Starter-Dialog zum Auswählen des Layouts und beendet das aktuelle Skript."""
         starter_path = Path("/usr/lib/guideos-videokonverter/guideos-videokonverter-start.py")
 
         if not starter_path.exists():
@@ -220,6 +229,32 @@ class VideoConverterWindow(QMainWindow):
 
         subprocess.Popen([sys.executable, str(starter_path), "--select"])
         self.close()
+
+    def open_help_dialog(self):
+        """Lädt den Hilfetext aus einer externen HTML-Datei und zeigt ihn an."""
+        possible_paths = [
+            Path(__file__).parent / "hilfe.html",
+            Path("/usr/lib/guideos-videokonverter/hilfe.html")
+        ]
+
+        help_text = None
+        for p in possible_paths:
+            if p.exists():
+                try:
+                    help_text = p.read_text(encoding="utf-8")
+                    break
+                except Exception as e:
+                    help_text = f"Fehler beim Lesen der Hilfedatei: {e}"
+
+        if not help_text:
+            help_text = "<b>Fehler:</b> Die Hilfedatei (hilfe.html) konnte nicht gefunden werden."
+
+        help_msg = QMessageBox(self)
+        help_msg.setWindowTitle("Hilfe & Skriptbeschreibung")
+        help_msg.setIcon(QMessageBox.Icon.Information)
+        help_msg.setText(help_text)
+        help_msg.setStandardButtons(QMessageBox.StandardButton.Ok)
+        help_msg.exec()
 
     def _init_ui(self):
         central_widget = QWidget()
@@ -229,7 +264,7 @@ class VideoConverterWindow(QMainWindow):
         outer_vbox.setContentsMargins(0, 0, 0, 0)
         outer_vbox.setSpacing(0)
 
-        # --- Top Header Bar mit Layout-Switch-Button ---
+        # --- Top Header Bar ---
         header_bar = QWidget()
         header_bar.setObjectName("headerBar")
         header_layout = QHBoxLayout(header_bar)
@@ -238,12 +273,18 @@ class VideoConverterWindow(QMainWindow):
         title_lbl = QLabel("")
         title_lbl.setObjectName("headerTitle")
 
+        # Hilfe-Button
+        self.help_btn = QPushButton("Hilfe")
+        self.help_btn.setObjectName("btn-help")
+        self.help_btn.clicked.connect(self.open_help_dialog)
+
         self.layout_toggle_btn = QPushButton(" Layout wechseln")
         self.layout_toggle_btn.setObjectName("btn-layout")
         self.layout_toggle_btn.clicked.connect(self.change_layout)
 
         header_layout.addWidget(title_lbl)
         header_layout.addStretch()
+        header_layout.addWidget(self.help_btn)
         header_layout.addWidget(self.layout_toggle_btn)
         outer_vbox.addWidget(header_bar)
 
@@ -311,14 +352,13 @@ class VideoConverterWindow(QMainWindow):
         self.dimension_combo.addItems(["Original", "720p (1280x720)", "1080p (1920x1080)", "1440p (2560x1440)", "2160p (3840x2160)"])
         grid_vopts.addWidget(self.dimension_combo, 2, 1)
 
-        # --- Nachschärfungs-Dropdown für Lanczos-Upscaling ---
         sharp_label = QLabel("Nachschärfung (Lanczos):")
         sharp_label.setToolTip("Schärft skaliertes Videomaterial nach.\nEmpfehlung: Mittel")
         grid_vopts.addWidget(sharp_label, 3, 0)
 
         self.sharpen_combo = QComboBox()
         self.sharpen_combo.addItems(["Aus", "Leicht", "Mittel (Empfohlen)", "Stark"])
-        self.sharpen_combo.setCurrentIndex(0)  # Vorauswahl: Mittel (Empfohlen)
+        self.sharpen_combo.setCurrentIndex(0)  # Standard: Aus
         grid_vopts.addWidget(self.sharpen_combo, 3, 1)
 
         grid_vopts.addWidget(QLabel("Farbtiefe:"), 4, 0)
@@ -332,17 +372,28 @@ class VideoConverterWindow(QMainWindow):
         self.quality_combo.currentIndexChanged.connect(self.on_quality_mode_changed)
         grid_vopts.addWidget(self.quality_combo, 5, 1)
 
+        # --- Bitraten-Typ (CBR/VBR) ---
+        self.bitrate_type_label = QLabel("Bitraten-Typ:")
+        grid_vopts.addWidget(self.bitrate_type_label, 6, 0)
+        self.bitrate_type_combo = QComboBox()
+        self.bitrate_type_combo.addItems(["VBR (Variable Bitrate)", "CBR (Konstante Bitrate)"])
+        grid_vopts.addWidget(self.bitrate_type_combo, 6, 1)
+
+        # Initial verstecken, da CQ der Standard ist
+        self.bitrate_type_label.setVisible(False)
+        self.bitrate_type_combo.setVisible(False)
+
         self.quality_label = QLabel("CRF Wert (0-51):")
-        grid_vopts.addWidget(self.quality_label, 6, 0)
+        grid_vopts.addWidget(self.quality_label, 7, 0)
         self.quality_entry = QLineEdit("23")
         self.quality_label.setToolTip("Der CRF Wert bestimmt die Qualität.\nEin kleinerer Wert bedeutet höhere Qualität, aber auch eine größere Ausgabedatei.")
-        grid_vopts.addWidget(self.quality_entry, 6, 1)
+        grid_vopts.addWidget(self.quality_entry, 7, 1)
 
-        grid_vopts.addWidget(QLabel("Analyse-Stufe:"), 7, 0)
+        grid_vopts.addWidget(QLabel("Analyse-Stufe:"), 8, 0)
         self.preset_combo = QComboBox()
         self.preset_combo.addItems(["ultrafast", "superfast", "veryfast", "faster", "fast", "medium", "slow", "slower", "veryslow"])
-        self.preset_combo.setCurrentIndex(5)
-        grid_vopts.addWidget(self.preset_combo, 7, 1)
+        self.preset_combo.setCurrentIndex(4)  # Standard: fast
+        grid_vopts.addWidget(self.preset_combo, 8, 1)
 
         tab_video_vbox.addLayout(grid_vopts)
 
@@ -363,24 +414,22 @@ class VideoConverterWindow(QMainWindow):
         grid_audio.setHorizontalSpacing(10)
         grid_audio.setVerticalSpacing(8)
 
-        grid_audio.addWidget(QLabel("Audioformat:"), 0, 0)
+        grid_audio.addWidget(QLabel("Audioeinstellungen:"), 0, 0)
         self.audio_combo = QComboBox()
-        self.audio_combo.addItems(["Opus (WebM/MKV)", "AAC", "PCM", "FLAC (mkv)"])
-        self.audio_combo.setCurrentIndex(1)
+        self.audio_combo.addItems(["Original kopieren", "Opus (WebM/MKV)", "AAC", "PCM", "FLAC (mkv)"])
+        self.audio_combo.setCurrentIndex(0)  # Standard: Original kopieren
+        self.audio_combo.currentIndexChanged.connect(self.on_audio_changed)
         grid_audio.addWidget(self.audio_combo, 0, 1)
 
-        norm_lbl = QLabel("Normalisierung (LUFS):")
-        norm_lbl.setToolTip("Passt die Lautstärke an (-16 Web, -23 TV)")
-        grid_audio.addWidget(norm_lbl, 1, 0)
+        self.norm_lbl = QLabel("Normalisierung (LUFS):")
+        self.norm_lbl.setToolTip("Passt die Lautstärke an (-16 Web, -23 TV)")
+        grid_audio.addWidget(self.norm_lbl, 1, 0)
         self.volume_spin = QSpinBox()
         self.volume_spin.setRange(-30, -5)
         self.volume_spin.setValue(-16)
         grid_audio.addWidget(self.volume_spin, 1, 1)
 
-        self.audio_copy_chk = QCheckBox("Audio kopieren (Kein Filter)")
-        self.audio_copy_chk.setToolTip("nützlich beim Bearbeiten von 5.1 Material")
-        self.audio_copy_chk.toggled.connect(self.on_audio_copy_toggled)
-        grid_audio.addWidget(self.audio_copy_chk, 2, 1)
+        self.volume_spin.setEnabled(False)
 
         tab_audio_vbox.addLayout(grid_audio)
 
@@ -556,14 +605,14 @@ class VideoConverterWindow(QMainWindow):
         self._update_video_codecs_for_container()
 
         if fmt and "WebM" in fmt:
-            self.audio_combo.setCurrentIndex(0)
+            self.audio_combo.setCurrentIndex(1)  # Opus falls WebM
         elif fmt and ("MP4" in fmt or "Matroska" in fmt):
-            if self.audio_combo.currentIndex() == 0:
-                self.audio_combo.setCurrentIndex(1)
+            if self.audio_combo.currentIndex() == 1:
+                self.audio_combo.setCurrentIndex(0)  # Original kopieren
 
-    def on_audio_copy_toggled(self, checked):
-        self.audio_combo.setEnabled(not checked)
-        self.volume_spin.setEnabled(not checked)
+    def on_audio_changed(self, index):
+        is_copy = (self.audio_combo.currentText() == "Original kopieren")
+        self.volume_spin.setEnabled(not is_copy)
 
     def on_reset_all(self):
         self.selected_files.clear()
@@ -578,14 +627,14 @@ class VideoConverterWindow(QMainWindow):
         self.format_combo.setCurrentIndex(0)
         self._update_video_codecs_for_container()
         self.dimension_combo.setCurrentIndex(0)
-        self.sharpen_combo.setCurrentIndex(0)
-        self.audio_combo.setCurrentIndex(1)
+        self.sharpen_combo.setCurrentIndex(0)  # Aus
+        self.audio_combo.setCurrentIndex(0)    # Original kopieren
         self.video_combo.setCurrentIndex(0)
         self.bit_combo.setCurrentIndex(0)
         self.quality_combo.setCurrentIndex(0)
-        self.preset_combo.setCurrentIndex(5)
+        self.bitrate_type_combo.setCurrentIndex(0)
+        self.preset_combo.setCurrentIndex(4)   # fast
         self.volume_spin.setValue(-16)
-        self.audio_copy_chk.setChecked(False)
         self.quality_entry.setText("23")
         self.target_entry.setText("")
         self.save_in_source_chk.setChecked(False)
@@ -595,15 +644,21 @@ class VideoConverterWindow(QMainWindow):
     def on_quality_mode_changed(self, index):
         m = self.quality_combo.currentText()
         if not m: return
-        if "CQ" in m:
-            self.quality_label.setText("CRF (0-51):")
-            self.quality_entry.setText("23")
-        elif "Bitrate" in m:
+
+        if "Bitrate" in m:
+            self.bitrate_type_label.setVisible(True)
+            self.bitrate_type_combo.setVisible(True)
             self.quality_label.setText("kbit/s:")
             self.quality_entry.setText("5000")
         else:
-            self.quality_label.setText("MB:")
-            self.quality_entry.setText("700")
+            self.bitrate_type_label.setVisible(False)
+            self.bitrate_type_combo.setVisible(False)
+            if "CQ" in m:
+                self.quality_label.setText("CRF (0-51):")
+                self.quality_entry.setText("23")
+            else:
+                self.quality_label.setText("MB:")
+                self.quality_entry.setText("700")
 
     def on_select_files(self):
         files, _ = QFileDialog.getOpenFileNames(self, "Videos wählen", "", "Video Files (*.mp4 *.mkv *.avi *.mov *.webm *.flv *.wmv)")
@@ -652,10 +707,11 @@ class VideoConverterWindow(QMainWindow):
 
         vchoice, achoice = self.video_combo.currentText(), self.audio_combo.currentText()
         qmode, qval_raw = self.quality_combo.currentText(), self.quality_entry.text()
+        bitrate_type = self.bitrate_type_combo.currentText()
         upscale = self.dimension_combo.currentText()
         sharpen_mode = self.sharpen_combo.currentText()
         preset = self.preset_combo.currentText()
-        audio_copy = self.audio_copy_chk.isChecked()
+        audio_copy = (achoice == "Original kopieren")
         target_lufs = int(self.volume_spin.value())
         is_10bit = "10-Bit" in self.bit_combo.currentText()
 
@@ -675,7 +731,9 @@ class VideoConverterWindow(QMainWindow):
         if is_webm:
             if vchoice not in ["VP9", "AV1"]:
                 vchoice = "VP9"
-            audio_copy = False
+            if audio_copy:
+                audio_copy = False
+                achoice = "Opus (WebM/MKV)"
 
         args = []
 
@@ -685,8 +743,6 @@ class VideoConverterWindow(QMainWindow):
         # Hardware-Decoder-Optionen
         if vchoice != "Nur Audio ändern" and hw_mode != "CPU":
             if "NVIDIA" in hw_mode:
-                # Nutze -hwaccel cuda ohne erzwungenes output_format cuda,
-                # damit FFmpeg bei Bedarf automatisch zwischen GPU und CPU konvertiert
                 args += ["-hwaccel", "cuda"]
             elif "INTEL" in hw_mode or "AMD" in hw_mode:
                 args += ["-hwaccel", "vaapi", "-hwaccel_output_format", "vaapi", "-hwaccel_device", "/dev/dri/renderD128"]
@@ -714,7 +770,7 @@ class VideoConverterWindow(QMainWindow):
             else: fmt = "AV1"
 
             codec = _select_encoder(fmt, hw_mode)
-            args += _codec_quality_args(codec, qmode, qval_raw, preset, infile)
+            args += _codec_quality_args(codec, qmode, qval_raw, preset, infile, bitrate_type)
 
             if is_10bit and "vaapi" not in codec and "nvenc" not in codec:
                 args += ["-pix_fmt", "yuv420p10le"]
@@ -877,14 +933,11 @@ if __name__ == "__main__":
     import os
     from PyQt6.QtGui import QIcon
 
-    # Wichtig für die Taskleiste (Wayland/X11 Desktop-Matching):
-    # Setzt die Anwendungsklasse passend zur StartupWMClass der .desktop-Datei
     os.environ["QT_QPA_PLATFORM_APP_ID"] = "guideos-videokonverter"
 
     app = QApplication(sys.argv)
     app.setDesktopFileName("guideos-videokonverter")
 
-    # Lädt das Fenster- und Taskleisten-Icon direkt aus pixmaps
     icon_path = "/usr/share/pixmaps/guideos-videokonverter.png"
     if os.path.exists(icon_path):
         app.setWindowIcon(QIcon(icon_path))
