@@ -1,8 +1,11 @@
 guideos-videokonverter           usr/bin/
 guideos-videokonverter.desktop   usr/share/applications/
 guideos-videokonverter.png       usr/share/pixmaps/
-guideos-videokonverter-h.py      usr/lib/guideos-videokonverter/
-guideos-videokonverter-q.py      usr/lib/guideos-videokonverter/
+icons/help.svg                   usr/lib/guideos-videokonverter/icons/
+icons/layout.svg                 usr/lib/guideos-videokonverter/icons/
+main.py                          usr/lib/guideos-videokonverter/
+layout_h.py                      usr/lib/guideos-videokonverter/
+layout_q.py                      usr/lib/guideos-videokonverter/
 guideos-videokonverter-start.py  usr/lib/guideos-videokonverter/
 video_preview.py                 usr/lib/guideos-videokonverter/
 hilfe.html                       usr/lib/guideos-videokonverter/
