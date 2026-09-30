@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # =======================================================================
-# Titel:    GuideOS Videokonverter – Starter & Auswähler (PyQt6)
-# Version:  2.2.0
+# Titel:    GuideOS Videokonverter – start & layout-change (PyQt6)
+# Version:  1.2.2
 # Autor:    Nightworker / Gemini
 # =======================================================================
 import sys
@@ -136,29 +136,24 @@ def main():
             sys.exit(0)
 
     # -------------------------------------------------------------
-    # Skript-Aufruf vorbereiten
+    # Skript-Aufruf vorbereiten (Ziel: main.py)
     # -------------------------------------------------------------
     if APP_DIR.exists():
         os.chdir(APP_DIR)
     else:
         os.chdir(Path(__file__).parent)
 
-    script_name = (
-        "guideos-videokonverter-q.py"
-        if selected_layout == "q"
-        else "guideos-videokonverter-h.py"
-    )
-    script_path = Path.cwd() / script_name
+    script_path = Path.cwd() / "main.py"
 
     if script_path.exists():
-        # Reicht nur die restlichen Argumente weiter
-        cmd = [sys.executable, str(script_path)] + filtered_args
+        # Reicht das gewählte Layout als Parameter --layout an main.py weiter
+        cmd = [sys.executable, str(script_path), f"--layout={selected_layout}"] + filtered_args
         subprocess.Popen(cmd)
         sys.exit(0)
     else:
         if not QApplication.instance():
             app = QApplication(sys.argv)
-        show_error_dialog(f"Die Datei wurde nicht gefunden:\n{script_path}")
+        show_error_dialog(f"Die Hauptdatei wurde nicht gefunden:\n{script_path}")
         sys.exit(1)
 
 
