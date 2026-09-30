@@ -1,4 +1,16 @@
-guideos-videokonverter (1.1.9.1) unstable; urgency=low
+guideos-videokonverter (1.2.3) unstable; urgency=low
+  * change icons
+ -- Nightworker <nightworker@guideos.de>  Wed, 30 Sep 2026 23:31:00 +0200
+
+guideos-videokonverter (1.2.2) unstable; urgency=low
+  * dynamic layout engine
+ -- Nightworker <nightworker@guideos.de>  Tue, 22 Sep 2026 07:31:00 +0200
+
+guideos-videokonverter (1.2.1) unstable; urgency=low
+  * added “Integration of external help files
+ -- Nightworker <nightworker@guideos.de>  Tue, 11 Aug 2026 07:31:00 +0200
+
+guideos-videokonverter (1.1.9) unstable; urgency=low
   * added “re-sharpen” to lnczeros
  -- Nightworker <nightworker@guideos.de>  Tue, 11 Aug 2026 07:31:00 +0200
 
