@@ -4,10 +4,10 @@ Er erleichtert das schnelle Umwandeln, Schneiden und Komprimieren von Videoclips
 Zur Maximierung der Verarbeitungsgeschwindigkeit wird vorhandene Grafikhardware (GPU) voll ausgenutzt.
 
 <div style="display:flex; gap:10px;">
+  <img src="screenshot/layout-wechsel.webp" width="180">
   <img src="screenshot/hochkant-preview.webp" width="200">
   <img src="screenshot/querformat-preview.webp" width="180">
   <img src="screenshot/Info.webp" width="150">
-  <img src="screenshot/layout-wechsel.webp" width="180">
 </div>
 
 ### Key Features auf einen Blick
