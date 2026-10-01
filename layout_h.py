@@ -11,6 +11,19 @@ from PyQt6.QtGui import QIcon
 BASE_DIR = Path(__file__).resolve().parent
 ICON_DIR = BASE_DIR / "icons"
 
+
+def load_png_icon(icon_name: str) -> QIcon:
+    """Lädt ausschließlich PNG-Grafiken aus dem ICON_DIR.
+    Gibt ein leeres QIcon zurück, falls die Datei nicht existiert oder beschädigt ist.
+    """
+    png_path = ICON_DIR / f"{icon_name}.png"
+    if png_path.exists():
+        icon = QIcon(str(png_path))
+        if not icon.isNull():
+            return icon
+    return QIcon()
+
+
 def build_ui_hochformat(window):
     """Baut das Hochformat-Layout auf und verknüpft die Widgets mit dem Window-Objekt."""
     central_widget = QWidget()
@@ -20,33 +33,33 @@ def build_ui_hochformat(window):
     outer_vbox.setContentsMargins(0, 0, 0, 0)
     outer_vbox.setSpacing(0)
 
-    # Header Bar (exakt wie in layout_q)
+    # Header Bar
     header_bar = QWidget()
     header_bar.setObjectName("headerBar")
     header_layout = QHBoxLayout(header_bar)
     header_layout.setContentsMargins(10, 5, 10, 5)
 
-    # --- Hilfe-Button ---
+    # --- Hilfe-Button (ausschließlich help.png) ---
     window.help_btn = QPushButton()
     window.help_btn.setObjectName("btn-help")
     window.help_btn.setToolTip("Öffnet die Hilfedatei")
 
-    help_icon_path = ICON_DIR / "help.svg"
-    if help_icon_path.exists():
-        window.help_btn.setIcon(QIcon(str(help_icon_path)))
+    help_icon = load_png_icon("help")
+    if not help_icon.isNull():
+        window.help_btn.setIcon(help_icon)
     else:
         window.help_btn.setText("Hilfe")
 
     window.help_btn.clicked.connect(window.open_help_dialog)
 
-    # --- Layout-Button ---
+    # --- Layout-Button (ausschließlich layout.png) ---
     window.layout_toggle_btn = QPushButton()
     window.layout_toggle_btn.setObjectName("btn-layout")
     window.layout_toggle_btn.setToolTip("Wechselt das Layout")
 
-    layout_icon_path = ICON_DIR / "layout.svg"
-    if layout_icon_path.exists():
-        window.layout_toggle_btn.setIcon(QIcon(str(layout_icon_path)))
+    layout_icon = load_png_icon("layout")
+    if not layout_icon.isNull():
+        window.layout_toggle_btn.setIcon(layout_icon)
     else:
         window.layout_toggle_btn.setText("Layout wechseln")
 
@@ -63,8 +76,6 @@ def build_ui_hochformat(window):
     main_hbox.setContentsMargins(12, 12, 12, 12)
     main_hbox.setSpacing(12)
     outer_vbox.addWidget(content_widget)
-    main_hbox.setContentsMargins(12, 12, 12, 12)
-    main_hbox.setSpacing(12)
 
     # Linke Spalte
     left_vbox = QVBoxLayout()
