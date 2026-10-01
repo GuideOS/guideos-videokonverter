@@ -7,6 +7,7 @@ Zur Maximierung der Verarbeitungsgeschwindigkeit wird vorhandene Grafikhardware 
   <img src="screenshot/hochkant-preview.webp" width="270" height="270">
   <img src="screenshot/layout-wechsel.webp" width="270" height="100">
   <img src="screenshot/querformat-preview.webp" width="270" height="183">
+  <img src="screenshot/info.webp" width="270" height="270">
 </div>
 
 ### Key Features auf einen Blick
