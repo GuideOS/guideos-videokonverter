@@ -1,4 +1,9 @@
 #!/usr/bin/env python3
+# =======================================================================
+# Titel:     Linux Video Enkoder (Querformat-Layout Modul)
+# Version:   1.2.3
+# Autor:     Nightworker / Gemini
+# =======================================================================
 from pathlib import Path
 from PyQt6.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QGridLayout, QLabel, QLineEdit,
@@ -181,7 +186,8 @@ def build_ui_querformat(window):
     grid_audio = QGridLayout()
     grid_audio.addWidget(QLabel("Audioeinstellungen:"), 0, 0)
     window.audio_combo = QComboBox()
-    window.audio_combo.addItems(["Original kopieren", "Opus (WebM/MKV)", "AAC", "PCM", "FLAC (mkv)"])
+    # Angepasste Reihenfolge für volle Kompatibilität mit layout_h.py
+    window.audio_combo.addItems(["Original kopieren", "AAC", "Opus (WebM/MKV)", "PCM", "FLAC (mkv)"])
     window.audio_combo.setCurrentIndex(0)
     window.audio_combo.currentIndexChanged.connect(window.on_audio_format_changed)
     grid_audio.addWidget(window.audio_combo, 0, 1)
@@ -238,7 +244,7 @@ def build_ui_querformat(window):
     window.target_entry = QLineEdit()
     tab_export_vbox.addWidget(window.target_entry)
 
-    window.btn_target = QPushButton("Zielverzeichnis suchen")
+    window.btn_target = QPushButton("Zielverzeichnis wählen")
     window.btn_target.clicked.connect(window.on_browse_target)
     tab_export_vbox.addWidget(window.btn_target)
 
